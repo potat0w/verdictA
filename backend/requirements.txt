@@ -1,0 +1,18 @@
+faiss-cpu
+sentence-transformers
+google-generativeai
+fastapi
+uvicorn
+pydantic
+bcrypt
+cryptography
+python-jose
+python-multipart
+SQLAlchemy
+passlib
+python-dotenv
+
+# Use CPU-only PyTorch
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+openai

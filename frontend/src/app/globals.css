@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+:root {
+  --foreground: #eaeaea;
+  --background: #0f1c24;
+  --primary-dark: #0f1c24;
+  --primary-gold: #c8ab7f;
+  --primary-off-white: #f5f5f5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground: #ededed;
+    --background: #0a0a0a;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+/* Typography */
+.font-raleway {
+  font-family: var(--font-raleway), sans-serif;
+}
+
+.font-merriweather {
+  font-family: var(--font-merriweather), serif;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: 0.2px;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Smooth animations */
+* {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Loading animation */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Gradient background used across the app */
+.bg-legal-gradient {
+  background: linear-gradient(135deg, #0f1c24 0%, #1a2a35 50%, #0f1c24 100%);
+}
+
+/* Glass morphism effect */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
