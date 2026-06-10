@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from rag_utils import answer_with_rag
@@ -21,18 +22,11 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# CORS setup
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://verdict-ai-psi.vercel.app",
-        "https://verdict-ai.vercel.app", 
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "*"
-    ],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
@@ -47,6 +41,11 @@ def on_startup() -> None:
         logger.info("Database tables ensured.")
     except Exception as exc:
         logger.exception("Failed to initialize database: %s", exc)
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled error on %s: %s", request.url.path, exc)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 

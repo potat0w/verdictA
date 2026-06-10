@@ -4,7 +4,7 @@ google-generativeai
 fastapi
 uvicorn
 pydantic
-bcrypt
+bcrypt==4.0.1
 cryptography
 python-jose
 python-multipart
