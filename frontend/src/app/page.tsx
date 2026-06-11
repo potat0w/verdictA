@@ -127,11 +127,12 @@ export default function Home() {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
-    } catch {
+    } catch (err) {
+      const detail =
+        err instanceof Error ? err.message : "Something went wrong. Please try again.";
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content:
-          "I apologize, but I'm having trouble connecting to my legal database right now. Please try again in a moment.",
+        content: `Sorry, I couldn't answer that: ${detail}`,
         role: "assistant",
         timestamp: new Date(),
       };

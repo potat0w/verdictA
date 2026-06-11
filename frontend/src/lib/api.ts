@@ -46,7 +46,20 @@ export async function askLegalQuestion(query: string): Promise<AskResponse> {
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    const text = await response.text();
+    try {
+      const errorObj = JSON.parse(text);
+      if (errorObj?.detail) {
+        throw new Error(
+          typeof errorObj.detail === "string"
+            ? errorObj.detail
+            : JSON.stringify(errorObj.detail)
+        );
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message !== text) throw err;
+    }
+    throw new Error(text || `Request failed with status ${response.status}`);
   }
 
   return response.json();

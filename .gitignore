@@ -113,6 +113,7 @@ temp/
 
 # AI/ML model files
 *.pkl
+!backend/embeddings/chunk_metadata.pkl
 *.joblib
 models/
 *.h5

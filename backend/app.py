@@ -35,7 +35,7 @@ app.add_middleware(
 def on_startup() -> None:
     # Load .env if present
     load_dotenv()
-    logger.info("Environment loaded. GEMINI_API_KEY set: %s", bool(os.getenv("GEMINI_API_KEY")))
+    logger.info("Environment loaded. GROQ_API_KEY set: %s", bool(os.getenv("GROQ_API_KEY")))
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables ensured.")
@@ -60,11 +60,18 @@ async def ask_legal_question(payload: Question):
     except FileNotFoundError as exc:
         logger.exception("/ask missing embeddings: %s", exc)
         raise HTTPException(status_code=503, detail="Embeddings not found. Please build the index.")
+    except ValueError as exc:
+        message = str(exc)
+        if "GROQ_API_KEY" in message or "GROQ_MODEL_NAME" in message:
+            logger.error("/ask missing Groq configuration: %s", exc)
+            raise HTTPException(status_code=503, detail="Groq API is not configured on server.")
+        logger.exception("/ask value error: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to generate answer.")
     except RuntimeError as exc:
         message = str(exc)
-        if "GEMINI_API_KEY" in message:
-            logger.error("/ask missing GEMINI_API_KEY")
-            raise HTTPException(status_code=503, detail="Model API key not configured on server.")
+        if "GROQ_API_KEY" in message or "GROQ_MODEL_NAME" in message:
+            logger.error("/ask missing Groq configuration")
+            raise HTTPException(status_code=503, detail="Groq API is not configured on server.")
         logger.exception("/ask runtime error: %s", exc)
         raise HTTPException(status_code=500, detail="Failed to generate answer.")
     except Exception as exc:
@@ -81,7 +88,8 @@ async def health():
         "status": "ok",
         "embeddings_index_present": os.path.exists(getattr(rag_utils, "INDEX_PATH", "")),
         "embeddings_metadata_present": os.path.exists(getattr(rag_utils, "META_PATH", "")),
-        "gemini_key_configured": bool(os.getenv("GEMINI_API_KEY")),
+        "groq_key_configured": bool(os.getenv("GROQ_API_KEY")),
+        "groq_model_configured": bool(os.getenv("GROQ_MODEL_NAME")),
     }
 
 @app.get("/warmup")
