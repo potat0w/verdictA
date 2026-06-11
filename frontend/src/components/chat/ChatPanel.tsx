@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import {
-  Bot,
-  MessageSquare,
-  Palette,
-  Scale,
-  Send,
-  Sparkles,
-  User,
-  X,
-} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Bot, MessageSquare, Palette, Plus, Scale, Send, User, X } from "lucide-react";
 import { askLegalQuestion } from "@/lib/api";
+import {
+  CHAT_RETENTION_DAYS,
+  ChatSession,
+  StoredMessage,
+  createSessionId,
+  getActiveSessionId,
+  loadChatSessions,
+  saveChatSessions,
+  sessionTitleFromMessages,
+  setActiveSessionId,
+  upsertChatSession,
+} from "@/lib/chat-history";
+import { QUICK_SUGGESTIONS } from "@/lib/demo-questions";
 import { cn } from "@/lib/theme";
 import MessageContent from "./MessageContent";
 import AppearanceSettings from "./AppearanceSettings";
@@ -27,20 +31,71 @@ interface ChatPanelProps {
   onClose: () => void;
 }
 
-const SUGGESTIONS = [
-  { label: "Contract law basics", query: "What is contract law?" },
-  { label: "Property rights", query: "Explain property rights" },
-  { label: "Criminal defense", query: "What are criminal defense basics?" },
-  { label: "Business compliance", query: "What is business law compliance?" },
-];
+function toStored(messages: Message[]): StoredMessage[] {
+  return messages.map((m) => ({
+    id: m.id,
+    content: m.content,
+    role: m.role,
+    timestamp: m.timestamp.toISOString(),
+  }));
+}
+
+function fromStored(messages: StoredMessage[]): Message[] {
+  return messages.map((m) => ({
+    id: m.id,
+    content: m.content,
+    role: m.role,
+    timestamp: new Date(m.timestamp),
+  }));
+}
 
 export default function ChatPanel({ onClose }: ChatPanelProps) {
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionIdState] = useState<string | null>(
+    null
+  );
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [historyReady, setHistoryReady] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const loaded = loadChatSessions();
+    setSessions(loaded);
+    const savedActiveId = getActiveSessionId();
+    const active = loaded.find((s) => s.id === savedActiveId);
+    if (active) {
+      setActiveSessionIdState(active.id);
+      setMessages(fromStored(active.messages));
+    }
+    setHistoryReady(true);
+  }, []);
+
+  const persistSession = useCallback(
+    (sessionId: string, nextMessages: Message[]) => {
+      const stored = toStored(nextMessages);
+      const session: ChatSession = {
+        id: sessionId,
+        title: sessionTitleFromMessages(stored),
+        messages: stored,
+        updatedAt: new Date().toISOString(),
+      };
+      setSessions((prev) => {
+        const updated = upsertChatSession(prev, session);
+        saveChatSessions(updated);
+        return updated;
+      });
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!historyReady || !activeSessionId || messages.length === 0) return;
+    persistSession(activeSessionId, messages);
+  }, [messages, activeSessionId, historyReady, persistSession]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
@@ -48,10 +103,32 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
 
   useEffect(() => {
     inputRef.current?.focus();
-  }, []);
+  }, [activeSessionId]);
+
+  const startNewChat = () => {
+    setActiveSessionIdState(null);
+    setActiveSessionId(null);
+    setMessages([]);
+    setInput("");
+    inputRef.current?.focus();
+  };
+
+  const openSession = (session: ChatSession) => {
+    setActiveSessionIdState(session.id);
+    setActiveSessionId(session.id);
+    setMessages(fromStored(session.messages));
+    setInput("");
+  };
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
+
+    let sessionId = activeSessionId;
+    if (!sessionId) {
+      sessionId = createSessionId();
+      setActiveSessionIdState(sessionId);
+      setActiveSessionId(sessionId);
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -60,33 +137,43 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const nextMessages = [...messages, userMessage];
+    setMessages(nextMessages);
+    persistSession(sessionId, nextMessages);
     setInput("");
     setIsLoading(true);
 
     try {
       const data = await askLegalQuestion(text.trim());
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          content: data.answer,
-          role: "assistant",
-          timestamp: new Date(),
-        },
-      ]);
+      setMessages((prev) => {
+        const withReply = [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            content: data.answer,
+            role: "assistant" as const,
+            timestamp: new Date(),
+          },
+        ];
+        persistSession(sessionId!, withReply);
+        return withReply;
+      });
     } catch (err) {
       const detail =
         err instanceof Error ? err.message : "Something went wrong.";
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          content: `Sorry, I couldn't answer that: ${detail}`,
-          role: "assistant",
-          timestamp: new Date(),
-        },
-      ]);
+      setMessages((prev) => {
+        const withError = [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            content: `Sorry, I couldn't answer that: ${detail}`,
+            role: "assistant" as const,
+            timestamp: new Date(),
+          },
+        ];
+        persistSession(sessionId!, withError);
+        return withError;
+      });
     } finally {
       setIsLoading(false);
     }
@@ -108,76 +195,80 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
 
   return (
     <>
-      <div className="fixed inset-0 z-[100] flex bg-[var(--chat-bg)]">
-        <aside className="hidden w-72 shrink-0 flex-col border-r border-[var(--chat-border)] bg-[var(--chat-surface)] lg:flex">
-          <div className="border-b border-[var(--chat-border)] p-6">
-            <div className="flex items-center gap-3">
-              <div className="chat-accent-icon flex h-11 w-11 items-center justify-center rounded-2xl">
-                <Scale className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="font-merriweather text-lg font-bold text-[var(--chat-text)]">
-                  VerdictAI
-                </h2>
-                <p className="text-xs text-[var(--chat-text-muted)]">
-                  Legal Assistant
-                </p>
-              </div>
-            </div>
+      <div className="fixed inset-0 z-[100] flex min-h-0 bg-[var(--chat-bg)]">
+        <aside className="hidden h-full w-[260px] shrink-0 flex-col border-r border-[var(--chat-border)] bg-[var(--chat-surface)] lg:flex">
+          <div className="p-3">
+            <button
+              type="button"
+              onClick={startNewChat}
+              className="flex w-full items-center gap-2 rounded-xl border border-[var(--chat-border)] px-3 py-2.5 text-sm text-[var(--chat-text)] hover:bg-[var(--chat-hover)]"
+            >
+              <Plus className="h-4 w-4" />
+              New chat
+            </button>
           </div>
 
-          <div className="flex-1 p-4">
-            <p className="mb-3 px-2 text-[11px] font-medium uppercase tracking-wider text-[var(--chat-text-muted)]">
-              Try asking
-            </p>
-            <div className="space-y-2">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s.query}
-                  onClick={() => sendMessage(s.query)}
-                  disabled={isLoading}
-                  className="flex w-full items-start gap-3 rounded-xl border border-[var(--chat-border)] bg-[var(--chat-hover)] p-3 text-left text-sm text-[var(--chat-text-muted)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--chat-text)] disabled:opacity-50"
-                >
-                  <MessageSquare
-                    className="mt-0.5 h-4 w-4 shrink-0"
-                    style={{ color: "var(--accent)" }}
-                  />
-                  {s.label}
-                </button>
-              ))}
-            </div>
+          <div className="chat-scroll flex-1 overflow-y-auto px-2 pb-2">
+            {sessions.length > 0 ? (
+              <div className="space-y-0.5">
+                {sessions.map((session) => (
+                  <button
+                    key={session.id}
+                    type="button"
+                    onClick={() => openSession(session)}
+                    className={cn(
+                      "flex w-full items-start gap-2 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-[var(--chat-hover)]",
+                      activeSessionId === session.id
+                        ? "bg-[var(--chat-hover)] text-[var(--chat-text)]"
+                        : "text-[var(--chat-text-muted)]"
+                    )}
+                  >
+                    <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 opacity-60" />
+                    <span className="line-clamp-2 leading-snug">
+                      {session.title}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="px-3 py-2 text-xs text-[var(--chat-text-muted)]">
+                No saved chats yet.
+              </p>
+            )}
           </div>
 
           <div className="border-t border-[var(--chat-border)] p-4">
-            <p className="text-center text-[11px] leading-relaxed text-[var(--chat-text-muted)]">
-              AI-generated guidance. Not a substitute for professional legal
-              counsel.
+            <div className="mb-2 flex items-center gap-2 px-1">
+              <div className="chat-accent-icon flex h-8 w-8 items-center justify-center rounded-lg">
+                <Scale className="h-4 w-4" />
+              </div>
+              <span className="text-sm font-semibold text-[var(--chat-text)]">
+                VerdictAI
+              </span>
+            </div>
+            <p className="text-[11px] leading-relaxed text-[var(--chat-text-muted)]">
+              Chats saved for {CHAT_RETENTION_DAYS} days on this device. AI
+              guidance only — not professional legal advice.
             </p>
           </div>
         </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-center justify-between border-b border-[var(--chat-border)] bg-[var(--chat-surface)] px-4 py-3 backdrop-blur-xl md:px-6">
-            <div className="flex items-center gap-3">
-              <div className="chat-bot-icon flex h-9 w-9 items-center justify-center rounded-xl lg:hidden">
-                <Scale className="h-4 w-4" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="font-merriweather text-base font-bold text-[var(--chat-text)] md:text-lg">
-                    Legal Chat
-                  </h2>
-                  <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-500">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    Online
-                  </span>
-                </div>
-                <p className="flex items-center gap-1 text-xs text-[var(--chat-text-muted)]">
-                  <Sparkles className="h-3 w-3" style={{ color: "var(--accent)" }} />
-                  Powered by legal knowledge base
-                </p>
-              </div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <header className="flex items-center justify-between px-4 py-3 md:px-6">
+            <div className="flex items-center gap-2 lg:hidden">
+              <button
+                type="button"
+                onClick={startNewChat}
+                className="rounded-xl border border-[var(--chat-border)] p-2 text-[var(--chat-text-muted)] hover:bg-[var(--chat-hover)] hover:text-[var(--chat-text)]"
+                aria-label="New chat"
+              >
+                <Plus className="h-5 w-5" />
+              </button>
+              <span className="text-sm font-semibold text-[var(--chat-text)]">
+                VerdictAI
+              </span>
             </div>
+            <div className="hidden lg:block" />
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowSettings(true)}
@@ -198,162 +289,154 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
 
           <div
             ref={scrollRef}
-            className="chat-scroll flex-1 overflow-y-auto px-4 py-6 md:px-8"
+            className="chat-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 md:px-6"
           >
             {isEmpty ? (
-              <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center text-center">
-                <div
-                  className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border"
-                  style={{
-                    borderColor: "color-mix(in srgb, var(--accent) 30%, transparent)",
-                    background:
-                      "color-mix(in srgb, var(--accent) 10%, transparent)",
-                  }}
-                >
-                  <Bot className="h-8 w-8" style={{ color: "var(--accent)" }} />
-                </div>
-                <h3 className="font-merriweather mb-2 text-2xl font-bold text-[var(--chat-text)]">
+              <div className="flex min-h-full flex-col items-center justify-center px-4 text-center">
+                <h3 className="font-merriweather text-2xl font-semibold text-[var(--chat-text)] md:text-3xl">
                   How can I help you today?
                 </h3>
-                <p className="mb-8 max-w-md text-sm leading-relaxed text-[var(--chat-text-muted)]">
-                  Ask about contracts, property law, criminal defense, business
-                  compliance, and more.
+                <p className="mt-2 max-w-md text-sm text-[var(--chat-text-muted)]">
+                  Ask about legal rights, constitutional law, or everyday
+                  scenarios.
                 </p>
-                <div className="grid w-full max-w-lg gap-2 sm:grid-cols-2">
-                  {SUGGESTIONS.map((s) => (
-                    <button
-                      key={s.query}
-                      onClick={() => sendMessage(s.query)}
-                      className="rounded-xl border border-[var(--chat-border)] bg-[var(--chat-hover)] px-4 py-3 text-left text-sm text-[var(--chat-text-muted)] hover:text-[var(--chat-text)]"
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
               </div>
             ) : (
-              <div className="mx-auto max-w-3xl space-y-6">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={cn(
-                      "flex gap-4",
-                      message.role === "user" ? "flex-row-reverse" : "flex-row"
-                    )}
-                  >
+              <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col justify-end">
+                <div className="space-y-4">
+                  {messages.map((message) => (
                     <div
+                      key={message.id}
                       className={cn(
-                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                        "flex gap-3",
                         message.role === "user"
-                          ? "chat-accent-icon"
-                          : "chat-bot-icon"
-                      )}
-                    >
-                      {message.role === "user" ? (
-                        <User className="h-4 w-4" />
-                      ) : (
-                        <Bot className="h-4 w-4" />
-                      )}
-                    </div>
-
-                    <div
-                      className={cn(
-                        "min-w-0 flex-1",
-                        message.role === "user" ? "flex flex-col items-end" : ""
+                          ? "flex-row-reverse"
+                          : "flex-row"
                       )}
                     >
                       <div
                         className={cn(
+                          "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
                           message.role === "user"
-                            ? "chat-user-bubble max-w-[85%] rounded-2xl rounded-tr-md px-4 py-3"
-                            : "w-full rounded-2xl rounded-tl-md border border-[var(--chat-border)] bg-[var(--chat-bubble-assistant)] px-5 py-4"
+                            ? "chat-accent-icon"
+                            : "chat-bot-icon"
                         )}
                       >
                         {message.role === "user" ? (
-                          <p className="text-[15px] font-medium leading-relaxed">
-                            {message.content}
-                          </p>
+                          <User className="h-4 w-4" />
                         ) : (
-                          <MessageContent content={message.content} />
+                          <Bot className="h-4 w-4" />
                         )}
                       </div>
-                      <span className="mt-1.5 px-1 text-[11px] text-[var(--chat-text-muted)]">
-                        {message.timestamp.toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                ))}
 
-                {isLoading && (
-                  <div className="flex gap-4">
-                    <div className="chat-bot-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
-                      <Bot className="h-4 w-4" />
-                    </div>
-                    <div className="flex items-center gap-3 rounded-2xl rounded-tl-md border border-[var(--chat-border)] bg-[var(--chat-bubble-assistant)] px-5 py-4">
-                      <div className="flex gap-1">
-                        {[0, 150, 300].map((delay) => (
-                          <span
-                            key={delay}
-                            className="h-2 w-2 animate-bounce rounded-full"
-                            style={{
-                              background:
-                                "color-mix(in srgb, var(--accent) 60%, transparent)",
-                              animationDelay: `${delay}ms`,
-                            }}
-                          />
-                        ))}
+                      <div
+                        className={cn(
+                          "min-w-0 flex-1",
+                          message.role === "user"
+                            ? "flex flex-col items-end"
+                            : ""
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            message.role === "user"
+                              ? "chat-user-bubble max-w-[85%] rounded-2xl rounded-tr-md px-4 py-3"
+                              : "w-full rounded-2xl rounded-tl-md border border-[var(--chat-border)] bg-[var(--chat-bubble-assistant)] px-5 py-4"
+                          )}
+                        >
+                          {message.role === "user" ? (
+                            <p className="text-[15px] font-medium leading-relaxed">
+                              {message.content}
+                            </p>
+                          ) : (
+                            <MessageContent content={message.content} />
+                          )}
+                        </div>
+                        <span className="mt-1.5 px-1 text-[11px] text-[var(--chat-text-muted)]">
+                          {message.timestamp.toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
                       </div>
-                      <span className="text-sm text-[var(--chat-text-muted)]">
-                        Researching legal sources...
-                      </span>
                     </div>
-                  </div>
-                )}
+                  ))}
+
+                  {isLoading && (
+                    <div className="flex gap-3">
+                      <div className="chat-bot-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
+                        <Bot className="h-4 w-4" />
+                      </div>
+                      <div className="flex items-center gap-3 rounded-2xl rounded-tl-md border border-[var(--chat-border)] bg-[var(--chat-bubble-assistant)] px-4 py-3">
+                        <div className="flex gap-1">
+                          {[0, 150, 300].map((delay) => (
+                            <span
+                              key={delay}
+                              className="h-2 w-2 animate-bounce rounded-full"
+                              style={{
+                                background:
+                                  "color-mix(in srgb, var(--accent) 60%, transparent)",
+                                animationDelay: `${delay}ms`,
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-sm text-[var(--chat-text-muted)]">
+                          Researching legal sources...
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
 
-          <div className="border-t border-[var(--chat-border)] bg-[var(--chat-surface)] p-4 md:p-6">
+          <div className="shrink-0 px-4 pb-4 md:px-6 md:pb-6">
+            {isEmpty && (
+              <div className="mx-auto mb-3 flex max-w-2xl flex-wrap justify-center gap-2">
+                {QUICK_SUGGESTIONS.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => sendMessage(s.query)}
+                    disabled={isLoading}
+                    className="rounded-full border border-[var(--chat-border)] bg-[var(--chat-surface)] px-4 py-2 text-sm text-[var(--chat-text-muted)] hover:bg-[var(--chat-hover)] hover:text-[var(--chat-text)] disabled:opacity-50"
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
             <form
               onSubmit={handleSubmit}
-              className="mx-auto flex max-w-3xl items-end gap-3"
+              className="mx-auto flex max-w-3xl items-end gap-2 rounded-[28px] border border-[var(--chat-border)] bg-[var(--chat-input-bg)] p-2 shadow-sm focus-within:ring-1"
+              style={
+                {
+                  "--tw-ring-color":
+                    "color-mix(in srgb, var(--accent) 20%, transparent)",
+                } as React.CSSProperties
+              }
             >
-              <div
-                className="relative flex-1 rounded-2xl border border-[var(--chat-border)] bg-[var(--chat-input-bg)] focus-within:ring-1"
-                style={
-                  {
-                    borderColor: undefined,
-                    "--tw-ring-color":
-                      "color-mix(in srgb, var(--accent) 25%, transparent)",
-                  } as React.CSSProperties
-                }
-              >
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask a legal question..."
-                  rows={1}
-                  className="max-h-32 w-full resize-none bg-transparent px-5 py-3.5 text-sm text-[var(--chat-text)] placeholder-[var(--chat-text-muted)] outline-none"
-                  disabled={isLoading}
-                />
-              </div>
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Message VerdictAI..."
+                rows={1}
+                className="max-h-32 min-h-[44px] flex-1 resize-none bg-transparent px-4 py-3 text-sm text-[var(--chat-text)] placeholder-[var(--chat-text-muted)] outline-none"
+                disabled={isLoading}
+              />
               <button
                 type="submit"
                 disabled={!input.trim() || isLoading}
-                className="chat-send-btn flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-2xl hover:brightness-110 disabled:opacity-30"
+                className="chat-send-btn flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:brightness-110 disabled:opacity-30"
                 aria-label="Send"
               >
                 <Send className="h-4 w-4" />
               </button>
             </form>
-            <p className="mx-auto mt-2 max-w-3xl text-center text-[11px] text-[var(--chat-text-muted)]">
-              Press Enter to send · Shift+Enter for new line
-            </p>
           </div>
         </div>
       </div>

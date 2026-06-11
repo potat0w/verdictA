@@ -1,23 +1,43 @@
 export default function HeroBackground() {
   return (
     <div className="absolute inset-0 overflow-hidden" aria-hidden>
-      <div className="absolute inset-0 bg-[var(--page-bg)]" />
       <div
-        className="absolute -top-1/4 -right-1/4 h-[70%] w-[70%] rounded-full blur-[120px]"
+        className="absolute -left-[20%] top-[10%] h-[500px] w-[500px] rounded-full blur-[140px]"
         style={{
-          background: "color-mix(in srgb, var(--accent) 8%, transparent)",
+          background: "color-mix(in srgb, var(--accent) 18%, transparent)",
         }}
       />
-      <div className="absolute -bottom-1/4 -left-1/4 h-[60%] w-[60%] rounded-full bg-[color-mix(in_srgb,var(--page-text)_4%,transparent)] blur-[100px]" />
       <div
-        className="absolute inset-0 opacity-[0.04] [data-theme=light]:opacity-[0.06]"
+        className="absolute -right-[10%] top-[20%] h-[400px] w-[400px] rounded-full blur-[120px]"
+        style={{
+          background: "color-mix(in srgb, var(--accent) 10%, transparent)",
+        }}
+      />
+      <div
+        className="absolute bottom-0 left-1/2 h-[300px] w-[600px] -translate-x-1/2 rounded-full blur-[100px]"
+        style={{
+          background: "color-mix(in srgb, var(--page-text) 5%, transparent)",
+        }}
+      />
+
+      <div
+        className="absolute inset-0 opacity-[0.35]"
         style={{
           backgroundImage:
-            "linear-gradient(color-mix(in srgb, var(--accent) 50%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--accent) 50%, transparent) 1px, transparent 1px)",
-          backgroundSize: "64px 64px",
+            "radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--accent) 35%, transparent) 1px, transparent 0)",
+          backgroundSize: "40px 40px",
         }}
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--page-bg)]/50 to-[var(--page-bg)]" />
+
+      <div
+        className="absolute inset-x-0 top-0 h-px opacity-60"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 60%, transparent), transparent)",
+        }}
+      />
+
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[var(--page-bg)]" />
     </div>
   );
 }

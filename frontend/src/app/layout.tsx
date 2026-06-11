@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import "./globals.css";
 import { raleway, merriweather } from "@/lib/fonts";
+import { THEME_INIT_SCRIPT } from "@/lib/theme-init-script";
 import ToastProvider from "@/components/ui/Toast";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
@@ -20,30 +20,17 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${raleway.variable} ${merriweather.variable}`}
+      data-theme="dark"
       suppressHydrationWarning
     >
-      <head>
-        <Script id="theme-init" strategy="beforeInteractive">
-          {`
-            try {
-              var s = JSON.parse(localStorage.getItem('verdictai-theme') || '{}');
-              var mode = s.mode || 'dark';
-              var resolved = mode === 'system'
-                ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-                : mode;
-              document.documentElement.setAttribute('data-theme', resolved);
-              if (s.accent) {
-                document.documentElement.style.setProperty('--accent', s.accent);
-                document.documentElement.style.setProperty('--primary-gold', s.accent);
-              }
-            } catch (e) {}
-          `}
-        </Script>
-      </head>
       <body
         className="min-h-screen bg-legal-gradient font-raleway antialiased text-[var(--page-text)]"
         suppressHydrationWarning
       >
+        <script
+          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+          suppressHydrationWarning
+        />
         <ThemeProvider>
           <ToastProvider />
           {children}

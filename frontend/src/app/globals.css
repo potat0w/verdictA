@@ -19,6 +19,9 @@
   --page-border: rgba(255, 255, 255, 0.08);
   --page-hover: rgba(255, 255, 255, 0.06);
   --page-surface: rgba(15, 28, 36, 0.75);
+  --page-card: rgba(15, 28, 36, 0.55);
+  --page-section-alt: rgba(255, 255, 255, 0.04);
+  --page-input-bg: rgba(8, 14, 18, 0.8);
 
   --chat-bg: #060b0f;
   --chat-surface: #080f14;
@@ -42,6 +45,9 @@
   --page-border: rgba(0, 0, 0, 0.1);
   --page-hover: rgba(0, 0, 0, 0.04);
   --page-surface: rgba(255, 255, 255, 0.9);
+  --page-card: rgba(255, 255, 255, 0.7);
+  --page-section-alt: rgba(0, 0, 0, 0.04);
+  --page-input-bg: #ffffff;
 
   --chat-bg: #ffffff;
   --chat-surface: #f7f7f8;

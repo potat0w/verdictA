@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { FaGavel } from "react-icons/fa";
+import { Bot } from "lucide-react";
 import Button from "@/components/ui/Button";
 import ThemeToggle from "@/components/ThemeToggle";
 import { tokens } from "@/lib/theme";
 
 const NAV_LINKS = [
-  { href: "#services", label: "Services" },
-  { href: "#about", label: "About" },
-  { href: "#contact", label: "Contact" },
+  { href: "/", label: "Home" },
+  { href: "/product", label: "Product" },
+  { href: "/services", label: "Service" },
+  { href: "/contact", label: "Contact" },
 ] as const;
 
 interface NavbarProps {
@@ -30,7 +31,7 @@ export default function Navbar({ hasToken, onLogout }: NavbarProps) {
                   "color-mix(in srgb, var(--accent) 12%, transparent)",
               }}
             >
-              <FaGavel className="text-xl" style={{ color: "var(--accent)" }} />
+              <Bot className="text-xl" style={{ color: "var(--accent)" }} />
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight text-[var(--page-text)]">
@@ -40,20 +41,20 @@ export default function Navbar({ hasToken, onLogout }: NavbarProps) {
                 className="text-[10px] uppercase tracking-[0.2em]"
                 style={{ color: "var(--accent)" }}
               >
-                Legal Intelligence
+                AI Legal Chatbot
               </p>
             </div>
           </Link>
 
           <div className="hidden items-center gap-8 text-sm text-[var(--page-text-muted)] md:flex">
             {NAV_LINKS.map((link) => (
-              <a
+              <Link
                 key={link.href}
                 href={link.href}
                 className="hover:text-[var(--accent)]"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
           </div>
 
