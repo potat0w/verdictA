@@ -4,7 +4,7 @@ import json
 import pickle
 import numpy as np
 import faiss
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
 # Load the JSON file
 with open("processed_law.json", "r", encoding="utf-8") as f:
@@ -42,11 +42,11 @@ for act in data["acts"]:
     all_chunks.extend(extract_chunks(act))
 
 # Embeddings
-model = SentenceTransformer("all-MiniLM-L6-v2")
-texts = [chunk['content'] for chunk in all_chunks]
+model = TextEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
+texts = [chunk["content"] for chunk in all_chunks]
 metadata = all_chunks
 
-embeddings = model.encode(texts, show_progress_bar=True).astype("float32")
+embeddings = np.array(list(model.embed(texts)), dtype="float32")
 
 # FAISS
 index = faiss.IndexFlatL2(embeddings.shape[1])
