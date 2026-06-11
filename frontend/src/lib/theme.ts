@@ -12,9 +12,9 @@ export const tokens = {
 
   // Colors
   text: {
-    base: "text-[var(--primary-off-white)]",
-    muted: "text-white/70",
-    gold: "text-[var(--primary-gold)]",
+    base: "text-[var(--page-text)]",
+    muted: "text-[var(--page-text-muted)]",
+    gold: "text-[var(--accent)]",
   },
   bg: {
     base: "bg-[var(--primary-dark)]",
@@ -34,18 +34,18 @@ export const tokens = {
   },
 
   // Typography
-  heading: "font-merriweather font-bold text-[var(--primary-off-white)]",
+  heading: "font-merriweather font-bold text-[var(--page-text)]",
 
   // Buttons
   button: {
     base:
       "inline-flex items-center justify-center rounded-lg font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-0",
     primary:
-      "bg-[var(--primary-gold)] text-[#0f1c24] hover:brightness-110 focus-visible:ring-[var(--primary-gold)]",
+      "bg-[var(--accent)] text-[var(--accent-text)] hover:brightness-110 focus-visible:ring-[var(--accent)]",
     outline:
-      "border-2 border-[var(--primary-gold)] text-[var(--primary-gold)] hover:bg-[var(--primary-gold)] hover:text-[#0f1c24]",
+      "border-2 border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-[var(--accent-text)]",
     ghost:
-      "text-[var(--primary-off-white)] hover:bg-white/5",
+      "text-[var(--page-text)] hover:bg-[var(--page-hover)]",
     size: {
       sm: "px-3 py-2 text-sm",
       md: "px-5 py-2.5",
@@ -55,5 +55,5 @@ export const tokens = {
 
   // Badges / Icon containers
   iconBadge:
-    "w-16 h-16 rounded-xl flex items-center justify-center bg-[rgba(200,171,127,0.12)] text-[var(--primary-gold)]",
+    "w-16 h-16 rounded-xl flex items-center justify-center bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]",
 }; 
