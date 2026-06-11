@@ -4,21 +4,13 @@ import {
   ArrowRight,
   Bot,
   CheckCircle2,
-  MessageSquare,
   Sparkles,
   User,
-  Zap,
 } from "lucide-react";
 import { cn, tokens } from "@/lib/theme";
 import Button from "@/components/ui/Button";
 import HeroBackground from "@/components/HeroBackground";
 import { useChat } from "@/components/chat/ChatContext";
-
-const STATS = [
-  { value: "24/7", label: "Always Online" },
-  { value: "< 30s", label: "Avg Response" },
-  { value: "Free", label: "To Get Started" },
-];
 
 const TRUST_POINTS = [
   "Ask anything, anytime",
@@ -29,11 +21,11 @@ const TRUST_POINTS = [
 const PREVIEW_MESSAGES = [
   {
     role: "user" as const,
-    text: "If I am accused of a crime, do I have the right to remain silent?",
+    text: "Do I have the right to remain silent?",
   },
   {
     role: "assistant" as const,
-    text: "Yes. In many legal systems you have the right to remain silent and not testify against yourself. You are generally not required to answer police questions without a lawyer present...",
+    text: "Yes — in many legal systems you may remain silent and are not required to answer police questions without a lawyer.",
   },
 ];
 
@@ -41,18 +33,13 @@ export default function HeroSection() {
   const { openChat } = useChat();
 
   return (
-    <section className="relative min-h-[90vh] overflow-hidden">
+    <section className="relative overflow-hidden">
       <HeroBackground />
 
-      <div
-        className={cn(
-          tokens.container,
-          "relative z-10 flex min-h-[90vh] items-center py-16 lg:py-20"
-        )}
-      >
-        <div className="grid w-full items-center gap-12 lg:grid-cols-2 lg:gap-16">
-          <div className="text-center lg:text-left">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[var(--page-border)] bg-[var(--page-card)] px-4 py-2 backdrop-blur-sm">
+      <div className={cn(tokens.container, "relative z-10 py-20 md:py-28 lg:py-32")}>
+        <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-20 xl:gap-28">
+          <div className="max-w-xl text-center lg:max-w-none lg:text-left">
+            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-[var(--page-border)] bg-[var(--page-card)] px-4 py-2 backdrop-blur-sm">
               <span className="relative flex h-2 w-2">
                 <span
                   className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60"
@@ -75,34 +62,25 @@ export default function HeroSection() {
             <h1
               className={cn(
                 tokens.heading,
-                "mb-6 text-[2.75rem] leading-[1.08] sm:text-5xl md:text-6xl lg:text-[4.25rem]"
+                "mb-7 text-4xl leading-[1.12] sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1] xl:text-[3.5rem]"
               )}
             >
               Legal Answers,{" "}
-              <span className="relative inline-block">
-                <span className="bg-gradient-to-r from-[var(--accent)] via-[color-mix(in_srgb,var(--accent)_80%,#fff)] to-[var(--accent)] bg-clip-text text-transparent">
-                  Instantly
-                </span>
-                <span
-                  className="absolute -bottom-1 left-0 h-[3px] w-full rounded-full opacity-70"
-                  style={{
-                    background:
-                      "linear-gradient(90deg, var(--accent), transparent)",
-                  }}
-                />
+              <span className="bg-gradient-to-r from-[var(--accent)] via-[color-mix(in_srgb,var(--accent)_80%,#fff)] to-[var(--accent)] bg-clip-text text-transparent">
+                Instantly
               </span>
             </h1>
 
-            <p className="mx-auto mb-8 max-w-xl text-base leading-relaxed text-[var(--page-text-muted)] sm:text-lg lg:mx-0">
+            <p className="mx-auto mb-10 max-w-lg text-base leading-relaxed text-[var(--page-text-muted)] sm:text-lg lg:mx-0">
               Chat with VerdictAI — your intelligent legal assistant. Type a
               question, get clear answers backed by real legal knowledge.
             </p>
 
-            <ul className="mb-8 flex flex-wrap justify-center gap-x-5 gap-y-2 lg:justify-start">
+            <ul className="mb-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center lg:justify-start">
               {TRUST_POINTS.map((point) => (
                 <li
                   key={point}
-                  className="flex items-center gap-1.5 text-sm text-[var(--page-text-muted)]"
+                  className="flex items-center justify-center gap-2 text-sm text-[var(--page-text-muted)] sm:justify-start"
                 >
                   <CheckCircle2
                     className="h-4 w-4 shrink-0"
@@ -113,7 +91,7 @@ export default function HeroSection() {
               ))}
             </ul>
 
-            <div className="flex flex-col items-center gap-3 sm:flex-row lg:justify-start">
+            <div className="flex justify-center lg:justify-start">
               <Button
                 onClick={openChat}
                 size="lg"
@@ -122,49 +100,26 @@ export default function HeroSection() {
                 Open Chatbot
                 <ArrowRight className="h-5 w-5" />
               </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full sm:w-auto"
-                onClick={openChat}
-              >
-                Try a Free Question
-              </Button>
-            </div>
-
-            <div className="mt-12 grid grid-cols-3 gap-3 sm:gap-4">
-              {STATS.map((stat) => (
-                <div
-                  key={stat.label}
-                  className="rounded-xl border border-[var(--page-border)] bg-[var(--page-card)] px-3 py-4 backdrop-blur-sm sm:px-4"
-                >
-                  <p
-                    className="text-xl font-bold sm:text-2xl"
-                    style={{ color: "var(--accent)" }}
-                  >
-                    {stat.value}
-                  </p>
-                  <p className="mt-0.5 text-[10px] uppercase tracking-wider text-[var(--page-text-muted)] sm:text-xs">
-                    {stat.label}
-                  </p>
-                </div>
-              ))}
             </div>
           </div>
 
-          <div className="relative mx-auto w-full max-w-md lg:max-w-none">
+          <div className="relative mx-auto w-full max-w-sm lg:max-w-md xl:max-w-lg">
             <div
-              className="absolute -inset-6 rounded-[2rem] opacity-50 blur-2xl"
+              className="absolute -inset-8 rounded-[2rem] opacity-40 blur-3xl"
               style={{
                 background:
-                  "color-mix(in srgb, var(--accent) 20%, transparent)",
+                  "color-mix(in srgb, var(--accent) 18%, transparent)",
               }}
             />
 
-            <div className="relative overflow-hidden rounded-[1.75rem] border border-[var(--page-border)] bg-[var(--page-card)] shadow-2xl backdrop-blur-md">
-              <div className="flex items-center gap-3 border-b border-[var(--page-border)] px-5 py-4">
+            <button
+              type="button"
+              onClick={openChat}
+              className="group relative block w-full overflow-hidden rounded-2xl border border-[var(--page-border)] bg-[var(--page-card)] text-left shadow-xl backdrop-blur-md transition hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
+            >
+              <div className="flex items-center gap-3 border-b border-[var(--page-border)] px-5 py-3.5">
                 <div
-                  className="flex h-9 w-9 items-center justify-center rounded-lg"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg"
                   style={{
                     background:
                       "color-mix(in srgb, var(--accent) 15%, transparent)",
@@ -172,46 +127,43 @@ export default function HeroSection() {
                 >
                   <Bot className="h-4 w-4" style={{ color: "var(--accent)" }} />
                 </div>
-                <div className="flex-1">
+                <div>
                   <p className="text-sm font-semibold text-[var(--page-text)]">
                     VerdictAI Chat
                   </p>
                   <p className="flex items-center gap-1.5 text-[11px] text-emerald-500">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    Online — ready to help
+                    Online
                   </p>
                 </div>
-                <MessageSquare
-                  className="h-4 w-4 text-[var(--page-text-muted)]"
-                />
               </div>
 
-              <div className="space-y-4 p-5">
+              <div className="space-y-3 px-5 py-5">
                 {PREVIEW_MESSAGES.map((msg, i) => (
                   <div
                     key={i}
                     className={cn(
-                      "flex gap-3",
+                      "flex gap-2.5",
                       msg.role === "user" ? "flex-row-reverse" : "flex-row"
                     )}
                   >
                     <div
                       className={cn(
-                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+                        "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
                         msg.role === "user"
                           ? "chat-accent-icon"
                           : "chat-bot-icon"
                       )}
                     >
                       {msg.role === "user" ? (
-                        <User className="h-3.5 w-3.5" />
+                        <User className="h-3 w-3" />
                       ) : (
-                        <Bot className="h-3.5 w-3.5" />
+                        <Bot className="h-3 w-3" />
                       )}
                     </div>
                     <div
                       className={cn(
-                        "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
+                        "max-w-[88%] rounded-xl px-3 py-2 text-[13px] leading-relaxed",
                         msg.role === "user"
                           ? "chat-user-bubble rounded-tr-sm"
                           : "rounded-tl-sm border border-[var(--page-border)] bg-[var(--page-hover)] text-[var(--page-text)]"
@@ -221,28 +173,15 @@ export default function HeroSection() {
                     </div>
                   </div>
                 ))}
-
-                <div className="flex items-center gap-2 rounded-xl border border-[var(--page-border)] bg-[var(--page-hover)] px-4 py-3">
-                  <Zap
-                    className="h-4 w-4 shrink-0"
-                    style={{ color: "var(--accent)" }}
-                  />
-                  <span className="text-sm text-[var(--page-text-muted)]">
-                    Ask your question...
-                  </span>
-                </div>
               </div>
 
-              <div className="border-t border-[var(--page-border)] p-4">
-                <button
-                  onClick={openChat}
-                  className="chat-send-btn flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold"
-                >
-                  Start Chatting
-                  <ArrowRight className="h-4 w-4" />
-                </button>
+              <div className="border-t border-[var(--page-border)] px-5 py-3.5">
+                <span className="flex items-center justify-center gap-2 text-sm font-medium text-[var(--accent)] group-hover:underline">
+                  Start chatting
+                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                </span>
               </div>
-            </div>
+            </button>
           </div>
         </div>
       </div>
