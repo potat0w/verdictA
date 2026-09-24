@@ -198,22 +198,20 @@ function LandingPage() {
       </section>
 
       <footer id="contact" className="site-footer">
-        <div>
-          <a className="wordmark" href="#top">
-            verdict<span>ai</span>
-          </a>
-          <p>
-            Constitutional clarity,
-            <br />
-            in two languages.
-          </p>
-        </div>
-        <div className="footer-links">
-          <button type="button" onClick={openChat}>
-            Chat
-          </button>
-          <a href="#about">About</a>
-          <a href="mailto:hello@verdictai.bd">hello@verdictai.bd</a>
+        <div className="footer-top">
+          <div className="footer-brand">
+            <a className="wordmark" href="#top">
+              verdict<span>ai</span>
+            </a>
+            <p>Constitutional clarity, in two languages.</p>
+          </div>
+          <div className="footer-links">
+            <button type="button" onClick={openChat}>
+              Chat
+            </button>
+            <a href="#about">About</a>
+            <a href="mailto:hello@verdictai.bd">hello@verdictai.bd</a>
+          </div>
         </div>
         <div className="footer-bottom">
           <span>© 2026 VerdictAI</span>

@@ -36,22 +36,20 @@ export default function InnerPage({
         {children}
       </div>
       <footer className="site-footer">
-        <div>
-          <Link className="wordmark" href="/">
-            verdict<span>ai</span>
-          </Link>
-          <p>
-            Constitutional clarity,
-            <br />
-            in two languages.
-          </p>
-        </div>
-        <div className="footer-links">
-          <button type="button" onClick={openChat}>
-            Chat
-          </button>
-          <Link href="/#about">About</Link>
-          <a href="mailto:hello@verdictai.bd">hello@verdictai.bd</a>
+        <div className="footer-top">
+          <div className="footer-brand">
+            <Link className="wordmark" href="/">
+              verdict<span>ai</span>
+            </Link>
+            <p>Constitutional clarity, in two languages.</p>
+          </div>
+          <div className="footer-links">
+            <button type="button" onClick={openChat}>
+              Chat
+            </button>
+            <Link href="/#about">About</Link>
+            <a href="mailto:hello@verdictai.bd">hello@verdictai.bd</a>
+          </div>
         </div>
         <div className="footer-bottom">
           <span>© 2026 VerdictAI</span>

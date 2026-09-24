@@ -308,7 +308,7 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
         </aside>
 
         <section className="chat-main">
-          <header className="chat-header">
+          <div className="chat-float-controls">
             <button
               className="icon-button mobile-menu-button"
               type="button"
@@ -317,9 +317,6 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
             >
               <Menu />
             </button>
-            <div className="mobile-title">
-              <Scale size={15} /> verdict<span>ai</span>
-            </div>
             <div className="header-actions">
               <button
                 className="theme-button"
@@ -337,11 +334,8 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
               >
                 <X />
               </button>
-              <span className="model-label">
-                Constitutional guide <span className="status-dot" />
-              </span>
             </div>
-          </header>
+          </div>
 
           <div className="chat-scroll" ref={scrollRef}>
             <div className="chat-scroll-inner">
@@ -368,33 +362,21 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
                       className={`message ${message.role}`}
                       key={message.id}
                     >
-                      {message.role === "assistant" && (
-                        <div className="message-rail">
-                          <span className="message-avatar assistant">
-                            <Scale />
-                          </span>
-                        </div>
-                      )}
-                      <div className="message-stack">
-                        {message.role === "assistant" && (
-                          <div className="message-name">VerdictAI</div>
+                      <div className="message-body">
+                        {message.role === "assistant" ? (
+                          <>
+                            {message.content ? (
+                              <div className="prose-chat">
+                                <MessageContent content={message.content} />
+                              </div>
+                            ) : null}
+                            {streamingId === message.id && (
+                              <span className="stream-cursor" aria-hidden />
+                            )}
+                          </>
+                        ) : (
+                          <p>{message.content}</p>
                         )}
-                        <div className="message-body">
-                          {message.role === "assistant" ? (
-                            <>
-                              {message.content ? (
-                                <div className="prose-chat">
-                                  <MessageContent content={message.content} />
-                                </div>
-                              ) : null}
-                              {streamingId === message.id && (
-                                <span className="stream-cursor" aria-hidden />
-                              )}
-                            </>
-                          ) : (
-                            <p>{message.content}</p>
-                          )}
-                        </div>
                       </div>
                     </article>
                   ))}
@@ -403,16 +385,9 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
                       className="typing-state"
                       aria-label="VerdictAI is thinking"
                     >
-                      <div className="message-rail">
-                        <span className="message-avatar assistant">
-                          <Scale />
-                        </span>
-                      </div>
-                      <div className="typing-bubble">
-                        <span className="dot" />
-                        <span className="dot" />
-                        <span className="dot" />
-                      </div>
+                      <span className="dot" />
+                      <span className="dot" />
+                      <span className="dot" />
                     </div>
                   )}
                 </div>
