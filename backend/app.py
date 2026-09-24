@@ -51,11 +51,17 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 class Question(BaseModel):
     query: str
+    language: str | None = None
 
 @app.post("/ask")
 async def ask_legal_question(payload: Question):
     try:
-        answer = answer_with_rag(payload.query)
+        if payload.language is not None and payload.language not in ("en", "bn"):
+            raise HTTPException(
+                status_code=422,
+                detail="language must be 'en', 'bn', or omitted",
+            )
+        answer = answer_with_rag(payload.query, language=payload.language)
         return {"answer": answer}
     except FileNotFoundError as exc:
         logger.exception("/ask missing embeddings: %s", exc)

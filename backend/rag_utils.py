@@ -1,7 +1,9 @@
 import os
 import logging
 import time
-from typing import List, Dict
+from typing import List, Dict, Optional
+from language_filter import filter_chunks_by_language
+from legal_status import attach_legal_status_flags
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 EMBED_DIR = os.path.join(BASE_DIR, "embeddings")
@@ -67,32 +69,55 @@ def _lazy_init_models() -> None:
         raise
 
 
-def retrieve_chunks(query: str, top_k: int = 5) -> List[Dict]:
+def retrieve_chunks(
+    query: str,
+    top_k: int = 5,
+    language: Optional[str] = None,
+) -> List[Dict]:
     import numpy as np
 
     _lazy_init_models()
     query_vec = np.array(list(_embed_model.embed([query])), dtype="float32")
-    _, indices = _index.search(query_vec, top_k)
-    return [_metadata[i] for i in indices[0]]
+
+    search_k = top_k
+    if language is not None:
+        search_k = min(top_k * 5, len(_metadata))
+
+    _, indices = _index.search(query_vec, search_k)
+
+    raw_chunks = []
+    for index in indices[0]:
+        if index < 0:
+            continue
+        raw_chunks.append(_metadata[index])
+
+    if language is not None:
+        raw_chunks = filter_chunks_by_language(raw_chunks, language, top_k)
+    else:
+        raw_chunks = raw_chunks[:top_k]
+
+    return [attach_legal_status_flags(chunk) for chunk in raw_chunks]
 
 
-def answer_with_rag(query: str) -> str:
+def answer_with_rag(query: str, language: Optional[str] = None) -> str:
     from groq_client import generate_text
 
     _lazy_init_models()
 
     start_time = time.time()
 
-    top_chunks = retrieve_chunks(query, top_k=3)
+    top_chunks = retrieve_chunks(query, top_k=3, language=language)
 
     context_parts = []
     for c in top_chunks:
         content = c["content"]
         if len(content) > 1000:
             content = content[:1000] + "..."
-        context_parts.append(
-            f"{c['chunk_type'].capitalize()} from {c['act_title']}:\n{content}"
-        )
+        block = f"{c['chunk_type'].capitalize()} from {c['act_title']}:\n{content}"
+        flags = c.get("legal_status_flags") or []
+        if flags:
+            block += f"\nLegal status notes: {', '.join(flags)}"
+        context_parts.append(block)
 
     context = "\n\n".join(context_parts)
 
