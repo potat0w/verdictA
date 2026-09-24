@@ -1,206 +1,233 @@
 "use client";
 
-import {
-  ArrowRight,
-  Bot,
-  Brain,
-  MessageSquare,
-  Quote,
-  Sparkles,
-  Star,
-  Zap,
-} from "lucide-react";
-import { cn, tokens } from "@/lib/theme";
-import Button from "@/components/ui/Button";
-import HeroSection from "@/components/HeroSection";
-import SpotlightCard from "@/components/SpotlightCard/SpotlightCard";
-import SiteLayout from "@/components/layout/SiteLayout";
+import { useState } from "react";
+import { ArrowUpRight, Menu, X } from "lucide-react";
 import { useChat } from "@/components/chat/ChatContext";
+import SiteLayout from "@/components/layout/SiteLayout";
 
-const CHAT_FEATURES = [
-  {
-    icon: MessageSquare,
-    title: "Natural Conversation",
-    description:
-      "Type your question like you're texting a friend. No legal jargon required to get started.",
-  },
-  {
-    icon: Brain,
-    title: "Smart Legal AI",
-    description:
-      "Powered by a knowledge base of laws and regulations — answers are grounded in real legal texts.",
-  },
-  {
-    icon: Zap,
-    title: "Instant Responses",
-    description:
-      "Get answers in seconds, not days. Available 24/7 whenever you need guidance.",
-  },
-  {
-    icon: Sparkles,
-    title: "Easy to Use",
-    description:
-      "No appointments, no waiting rooms. Just open the chat and ask what you need to know.",
-  },
-  {
-    icon: Bot,
-    title: "Always Learning",
-    description:
-      "Our AI retrieves the most relevant legal information for every question you ask.",
-  },
-  {
-    icon: MessageSquare,
-    title: "Follow-Up Questions",
-    description:
-      "Keep the conversation going. Ask clarifications and dive deeper into any topic.",
-  },
+const steps = [
+  [
+    "01",
+    "Ask naturally",
+    "Write your question in Bangla or English, just as you would ask it.",
+  ],
+  [
+    "02",
+    "Understand clearly",
+    "VerdictAI explains the relevant constitutional principles in plain language.",
+  ],
+  [
+    "03",
+    "Read the source",
+    "Every answer points you back to the article that grounds it.",
+  ],
 ] as const;
 
-const STEPS = [
-  {
-    step: "01",
-    title: "Open the chat",
-    desc: "Click the chat button anywhere on the site.",
-  },
-  {
-    step: "02",
-    title: "Ask your question",
-    desc: "Type anything — contracts, rights, regulations, and more.",
-  },
-  {
-    step: "03",
-    title: "Get your answer",
-    desc: "Receive a clear, detailed response powered by legal data.",
-  },
-];
-
-export default function Home() {
+function LandingPage() {
   const { openChat } = useChat();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <SiteLayout>
-      <HeroSection />
+    <main className="site-shell">
+      <header className="site-nav" aria-label="Main navigation">
+        <a className="wordmark" href="#top" aria-label="VerdictAI home">
+          verdict<span>ai</span>
+        </a>
+        <nav className="desktop-nav" aria-label="Primary">
+          <button type="button" onClick={openChat}>
+            Chat
+          </button>
+          <a href="#about">About</a>
+          <a href="#contact">Contact</a>
+        </nav>
+        <button type="button" className="nav-cta" onClick={openChat}>
+          Open chat <ArrowUpRight size={14} strokeWidth={1.5} />
+        </button>
+        <button
+          className="mobile-menu"
+          type="button"
+          aria-label="Open navigation"
+          onClick={() => setMobileOpen((v) => !v)}
+        >
+          {mobileOpen ? <X size={20} strokeWidth={1.5} /> : <Menu size={20} strokeWidth={1.5} />}
+        </button>
+      </header>
 
-      <section className={tokens.section}>
-        <div className={tokens.container}>
-          <div className="mb-16 text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-[var(--accent)]">
-              Features
-            </p>
-            <h2 className={cn(tokens.heading, "mb-4 text-4xl md:text-5xl")}>
-              Why Use VerdictAI Chat?
-            </h2>
-            <p className="mx-auto max-w-xl text-lg text-[var(--page-text-muted)]">
-              A simple chatbot that gives you legal answers when you need them.
-            </p>
-          </div>
+      {mobileOpen && (
+        <div
+          className="flex flex-col gap-4 px-6 pb-6 text-xs uppercase tracking-[0.12em] md:hidden"
+          style={{ borderBottom: "1px solid var(--line)" }}
+        >
+          <button type="button" className="text-left" onClick={() => { openChat(); setMobileOpen(false); }}>
+            Chat
+          </button>
+          <a href="#about" onClick={() => setMobileOpen(false)}>
+            About
+          </a>
+          <a href="#contact" onClick={() => setMobileOpen(false)}>
+            Contact
+          </a>
+        </div>
+      )}
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {CHAT_FEATURES.map((feature) => (
-              <SpotlightCard
-                key={feature.title}
-                className="h-full rounded-2xl border border-[var(--page-border)] bg-[var(--page-card)] p-6 backdrop-blur-sm"
-              >
-                <div className={tokens.iconBadge}>
-                  <feature.icon className="h-7 w-7" />
-                </div>
-                <h3 className="mt-4 text-xl font-semibold">{feature.title}</h3>
-                <p className="mt-2 text-sm text-[var(--page-text-muted)]">
-                  {feature.description}
-                </p>
-              </SpotlightCard>
-            ))}
-          </div>
+      <section id="top" className="hero" aria-labelledby="hero-title">
+        <div
+          className="hero-image"
+          role="img"
+          aria-label="Constitutional paper in soft afternoon light"
+        />
+        <div className="hero-copy">
+          <p className="eyebrow">
+            A constitutional companion / সংবিধানের সঙ্গী
+          </p>
+          <h1 id="hero-title">
+            Your Constitution,
+            <br />
+            <em>explained.</em>
+          </h1>
+          <p className="hero-intro">
+            A calm, careful way to understand the Constitution of Bangladesh —
+            in Bangla or English.
+          </p>
+          <button type="button" className="button button-dark" onClick={openChat}>
+            Ask a question <ArrowUpRight size={16} strokeWidth={1.5} />
+          </button>
+        </div>
+        <p className="hero-note">
+          Dhaka / Bangladesh
+          <br />
+          01 — 04
+        </p>
+      </section>
+
+      <section className="intro-band" id="about" aria-labelledby="intro-title">
+        <p className="section-label">01 / The approach</p>
+        <div>
+          <h2 id="intro-title">
+            Make the law
+            <br />
+            <em>legible.</em>
+          </h2>
+          <p className="intro-text">
+            VerdictAI brings the country&apos;s foundational text closer to
+            everyday life. No jargon, no guessing — just thoughtful answers tied
+            to the words that matter.
+          </p>
         </div>
       </section>
 
-      <section className={cn(tokens.section, "bg-[var(--page-section-alt)]")}>
-        <div className={tokens.container}>
-          <div className="mb-12 text-center">
-            <h2 className={cn(tokens.heading, "mb-4 text-4xl")}>
-              How It Works
-            </h2>
-            <p className="text-[var(--page-text-muted)]">
-              Three steps to get your answer
-            </p>
-          </div>
-          <div className="grid gap-6 md:grid-cols-3">
-            {STEPS.map((item) => (
-              <div
-                key={item.step}
-                className="rounded-2xl border border-[var(--page-border)] bg-[var(--page-card)] p-8 text-center"
-              >
-                <p
-                  className="mb-4 text-3xl font-bold"
-                  style={{ color: "var(--accent)" }}
-                >
-                  {item.step}
-                </p>
-                <h3 className="mb-2 text-xl font-semibold">{item.title}</h3>
-                <p className="text-sm text-[var(--page-text-muted)]">
-                  {item.desc}
-                </p>
+      <section className="steps-section" aria-labelledby="steps-title">
+        <div className="section-heading">
+          <p className="section-label">02 / How it works</p>
+          <h2 id="steps-title">
+            Three steps
+            <br />
+            <em>to clarity.</em>
+          </h2>
+        </div>
+        <div className="steps-list">
+          {steps.map(([number, title, body]) => (
+            <article className="step" key={number}>
+              <span className="step-number">{number}</span>
+              <div>
+                <h3>{title}</h3>
+                <p>{body}</p>
               </div>
-            ))}
-          </div>
-          <div className="mt-10 text-center">
-            <Button onClick={openChat} size="lg" className="gap-2">
-              Try It Now
-              <ArrowRight className="h-5 w-5" />
-            </Button>
-          </div>
+              <ArrowUpRight className="step-arrow" size={18} strokeWidth={1.5} />
+            </article>
+          ))}
         </div>
       </section>
 
-      <section className={tokens.section}>
-        <div className={tokens.container}>
-          <div className="mb-12 text-center">
-            <h2 className={cn(tokens.heading, "mb-4 text-4xl")}>
-              What Users Say
-            </h2>
-          </div>
-          <div className="grid gap-6 md:grid-cols-2">
-            {[
-              {
-                quote:
-                  "I asked about contract terms and got a clear answer in seconds. Way faster than searching online.",
-                name: "Sarah M.",
-                role: "Startup Founder",
-              },
-              {
-                quote:
-                  "The chatbot understood my question and gave a detailed response. Best legal AI tool I've tried.",
-                name: "Ahmed K.",
-                role: "Freelancer",
-              },
-            ].map((t) => (
-              <SpotlightCard
-                key={t.name}
-                className="h-full rounded-2xl border border-[var(--page-border)] bg-[var(--page-card)] p-8 backdrop-blur-sm"
-              >
-                <div className="mb-4 flex gap-1">
-                  {Array.from({ length: 5 }).map((_, j) => (
-                    <Star
-                      key={j}
-                      className="h-4 w-4 fill-[var(--accent)] text-[var(--accent)]"
-                    />
-                  ))}
-                </div>
-                <Quote className="mb-3 h-6 w-6 text-[var(--accent)]/60" />
-                <p className="mb-6 text-[var(--page-text-muted)]">
-                  &ldquo;{t.quote}&rdquo;
-                </p>
-                <div>
-                  <p className="font-semibold">{t.name}</p>
-                  <p className="text-sm text-[var(--page-text-muted)]">
-                    {t.role}
-                  </p>
-                </div>
-              </SpotlightCard>
-            ))}
-          </div>
+      <section className="trust-section" aria-label="Trust and source">
+        <p className="section-label">03 / The source</p>
+        <blockquote>
+          “Built on the official text
+          <br />
+          of the <em>Bangladesh Constitution.</em>”
+        </blockquote>
+        <div className="trust-meta">
+          <p>
+            Answers are grounded in the Constitution of the People&apos;s
+            Republic of Bangladesh — with references to specific articles, in
+            both languages.
+          </p>
+          <span>
+            Established 2026
+            <br />
+            Dhaka, BD
+          </span>
         </div>
       </section>
+
+      <section className="chat-section" id="chat" aria-labelledby="chat-title">
+        <div className="section-heading">
+          <p className="section-label">04 / A small example</p>
+          <h2 id="chat-title">
+            Questions deserve
+            <br />
+            <em>good answers.</em>
+          </h2>
+        </div>
+        <div className="chat-paper">
+          <div className="chat-topline">
+            <span>VerdictAI / sample exchange</span>
+            <span>বাংলা + English</span>
+          </div>
+          <div className="question">
+            <span className="chat-label">You asked</span>
+            <p>
+              “What does the Constitution say about equality before the law?”
+            </p>
+          </div>
+          <div className="answer">
+            <span className="chat-label">VerdictAI</span>
+            <p>
+              Article 27 establishes that all citizens are equal before law and
+              are entitled to equal protection of law.
+            </p>
+            <p className="citation">
+              Constitution of Bangladesh / Article 27{" "}
+              <ArrowUpRight size={14} />
+            </p>
+          </div>
+        </div>
+        <button type="button" className="button button-outline" onClick={openChat}>
+          Open the conversation <ArrowUpRight size={16} strokeWidth={1.5} />
+        </button>
+      </section>
+
+      <footer id="contact" className="site-footer">
+        <div>
+          <a className="wordmark" href="#top">
+            verdict<span>ai</span>
+          </a>
+          <p>
+            Constitutional clarity,
+            <br />
+            in two languages.
+          </p>
+        </div>
+        <div className="footer-links">
+          <button type="button" onClick={openChat}>
+            Chat
+          </button>
+          <a href="#about">About</a>
+          <a href="mailto:hello@verdictai.bd">hello@verdictai.bd</a>
+        </div>
+        <div className="footer-bottom">
+          <span>© 2026 VerdictAI</span>
+          <span>Made for Bangladesh</span>
+        </div>
+      </footer>
+    </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <SiteLayout>
+      <LandingPage />
     </SiteLayout>
   );
 }

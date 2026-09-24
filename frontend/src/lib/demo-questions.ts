@@ -144,8 +144,12 @@ export const DEMO_QUESTIONS: DemoQuestion[] = [
 ];
 
 export const QUICK_SUGGESTIONS = [
-  DEMO_QUESTIONS.find((q) => q.id === "right-to-silence")!,
-  DEMO_QUESTIONS.find((q) => q.id === "free-speech")!,
-  DEMO_QUESTIONS.find((q) => q.id === "arrest-warrant")!,
-  DEMO_QUESTIONS.find((q) => q.id === "law-vs-constitution")!,
+  "What does Article 27 say about equality?",
+  "Can the police arrest me without a warrant?",
+  "What are my fundamental rights?",
+  "If a law conflicts with the Constitution, what happens?",
+  "আমার মত প্রকাশের অধিকার কী?",
+  "সংবিধানে সমতার কথা কী বলা আছে?",
+  "মৌলিক অধিকারগুলো কী কী?",
+  "পুলিশ ওয়ারেন্ট ছাড়া গ্রেপ্তার করলে কী করব?",
 ];

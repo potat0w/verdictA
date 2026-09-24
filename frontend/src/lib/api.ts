@@ -7,6 +7,7 @@ export interface AskResponse {
 
 export interface AskRequest {
   query: string;
+  language?: "en" | "bn";
 }
 
 // Auth types
@@ -34,7 +35,10 @@ export function clearToken() {
   }
 }
 
-export async function askLegalQuestion(query: string): Promise<AskResponse> {
+export async function askLegalQuestion(
+  query: string,
+  language?: "en" | "bn"
+): Promise<AskResponse> {
   const token = getToken();
   const response = await fetch(`${API_BASE_URL}/ask`, {
     method: "POST",
@@ -42,7 +46,10 @@ export async function askLegalQuestion(query: string): Promise<AskResponse> {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({
+      query,
+      ...(language ? { language } : {}),
+    }),
   });
 
   if (!response.ok) {

@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bot, MessageSquare, Palette, Plus, Scale, Send, User, X } from "lucide-react";
+import { ArrowUp, Menu, Moon, Plus, Scale, Sun, X } from "lucide-react";
 import { askLegalQuestion } from "@/lib/api";
 import {
-  CHAT_RETENTION_DAYS,
   ChatSession,
   StoredMessage,
   createSessionId,
@@ -16,9 +15,7 @@ import {
   upsertChatSession,
 } from "@/lib/chat-history";
 import { QUICK_SUGGESTIONS } from "@/lib/demo-questions";
-import { cn } from "@/lib/theme";
 import MessageContent from "./MessageContent";
-import AppearanceSettings from "./AppearanceSettings";
 
 interface Message {
   id: string;
@@ -30,6 +27,8 @@ interface Message {
 interface ChatPanelProps {
   onClose: () => void;
 }
+
+const LANG_KEY = "verdictai-language";
 
 function toStored(messages: Message[]): StoredMessage[] {
   return messages.map((m) => ({
@@ -57,10 +56,26 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [historyReady, setHistoryReady] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [dark, setDark] = useState(false);
+  const [language, setLanguage] = useState<"en" | "bn">("en");
+  const [streamingId, setStreamingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overflow;
+    const prevBody = body.style.overflow;
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    return () => {
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
+    };
+  }, []);
 
   useEffect(() => {
     const loaded = loadChatSessions();
@@ -71,6 +86,8 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
       setActiveSessionIdState(active.id);
       setMessages(fromStored(active.messages));
     }
+    const savedLang = localStorage.getItem(LANG_KEY);
+    if (savedLang === "bn" || savedLang === "en") setLanguage(savedLang);
     setHistoryReady(true);
   }, []);
 
@@ -99,17 +116,26 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages, isLoading]);
+  }, [messages, isLoading, streamingId]);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, [activeSessionId]);
+
+  const toggleLanguage = () => {
+    setLanguage((prev) => {
+      const next = prev === "en" ? "bn" : "en";
+      localStorage.setItem(LANG_KEY, next);
+      return next;
+    });
+  };
 
   const startNewChat = () => {
     setActiveSessionIdState(null);
     setActiveSessionId(null);
     setMessages([]);
     setInput("");
+    setSidebarOpen(false);
     inputRef.current?.focus();
   };
 
@@ -118,6 +144,7 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
     setActiveSessionId(session.id);
     setMessages(fromStored(session.messages));
     setInput("");
+    setSidebarOpen(false);
   };
 
   const sendMessage = async (text: string) => {
@@ -142,30 +169,57 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
     persistSession(sessionId, nextMessages);
     setInput("");
     setIsLoading(true);
+    setStreamingId(null);
+
+    const assistantId = (Date.now() + 1).toString();
 
     try {
-      const data = await askLegalQuestion(text.trim());
+      const data = await askLegalQuestion(text.trim(), language);
+      const full = data.answer || "";
+
+      setIsLoading(false);
+      setStreamingId(assistantId);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantId,
+          content: "",
+          role: "assistant" as const,
+          timestamp: new Date(),
+        },
+      ]);
+
+      const chunks = full.split(/(\s+)/);
+      let acc = "";
+      for (const chunk of chunks) {
+        acc += chunk;
+        const snapshot = acc;
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, content: snapshot } : m
+          )
+        );
+        await new Promise((r) => setTimeout(r, chunk.trim() ? 18 : 0));
+      }
+
+      setStreamingId(null);
       setMessages((prev) => {
-        const withReply = [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            content: data.answer,
-            role: "assistant" as const,
-            timestamp: new Date(),
-          },
-        ];
-        persistSession(sessionId!, withReply);
-        return withReply;
+        const finalMessages = prev.map((m) =>
+          m.id === assistantId ? { ...m, content: full } : m
+        );
+        persistSession(sessionId!, finalMessages);
+        return finalMessages;
       });
     } catch (err) {
       const detail =
         err instanceof Error ? err.message : "Something went wrong.";
+      setIsLoading(false);
+      setStreamingId(null);
       setMessages((prev) => {
         const withError = [
           ...prev,
           {
-            id: (Date.now() + 1).toString(),
+            id: assistantId,
             content: `Sorry, I couldn't answer that: ${detail}`,
             role: "assistant" as const,
             timestamp: new Date(),
@@ -174,277 +228,254 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
         persistSession(sessionId!, withError);
         return withError;
       });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    sendMessage(input);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage(input);
     }
   };
 
   const isEmpty = messages.length === 0;
+  const bnSuggestions = QUICK_SUGGESTIONS.filter((s) =>
+    /[\u0980-\u09FF]/.test(s)
+  ).slice(0, 4);
+  const enSuggestions = QUICK_SUGGESTIONS.filter(
+    (s) => !/[\u0980-\u09FF]/.test(s)
+  ).slice(0, 4);
+  const displaySuggestions =
+    language === "bn" ? bnSuggestions : enSuggestions;
 
   return (
-    <>
-      <div className="fixed inset-0 z-[100] flex min-h-0 bg-[var(--chat-bg)]">
-        <aside className="hidden h-full w-[260px] shrink-0 flex-col border-r border-[var(--chat-border)] bg-[var(--chat-surface)] lg:flex">
-          <div className="p-3">
+    <div className="fixed inset-0 z-[100] overflow-hidden">
+      <main className={`chat-app${dark ? " is-dark" : ""} h-full`}>
+        <aside className={`sidebar${sidebarOpen ? " is-open" : ""}`}>
+          <div className="sidebar-head">
+            <a className="chat-logo" href="/" aria-label="VerdictAI home">
+              <Scale size={17} />{" "}
+              <span>
+                verdict<span>ai</span>
+              </span>
+            </a>
             <button
+              className="icon-button close-sidebar"
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Close menu"
               type="button"
-              onClick={startNewChat}
-              className="flex w-full items-center gap-2 rounded-xl border border-[var(--chat-border)] px-3 py-2.5 text-sm text-[var(--chat-text)] hover:bg-[var(--chat-hover)]"
             >
-              <Plus className="h-4 w-4" />
-              New chat
+              <X />
             </button>
           </div>
 
-          <div className="chat-scroll flex-1 overflow-y-auto px-2 pb-2">
-            {sessions.length > 0 ? (
-              <div className="space-y-0.5">
-                {sessions.map((session) => (
-                  <button
-                    key={session.id}
-                    type="button"
-                    onClick={() => openSession(session)}
-                    className={cn(
-                      "flex w-full items-start gap-2 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-[var(--chat-hover)]",
-                      activeSessionId === session.id
-                        ? "bg-[var(--chat-hover)] text-[var(--chat-text)]"
-                        : "text-[var(--chat-text-muted)]"
-                    )}
-                  >
-                    <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 opacity-60" />
-                    <span className="line-clamp-2 leading-snug">
-                      {session.title}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="px-3 py-2 text-xs text-[var(--chat-text-muted)]">
-                No saved chats yet.
+          <button className="new-chat" type="button" onClick={startNewChat}>
+            <Plus /> New chat
+          </button>
+
+          <div className="conversation-list">
+            <p className="sidebar-label">Recent conversations</p>
+            {sessions.length === 0 && (
+              <p className="sidebar-version" style={{ marginTop: 8 }}>
+                No chats yet
               </p>
             )}
+            {sessions.map((session) => (
+              <button
+                key={session.id}
+                type="button"
+                className={`conversation${
+                  session.id === activeSessionId ? " active" : ""
+                }`}
+                onClick={() => openSession(session)}
+              >
+                {session.title}
+              </button>
+            ))}
           </div>
 
-          <div className="border-t border-[var(--chat-border)] p-4">
-            <div className="mb-2 flex items-center gap-2 px-1">
-              <div className="chat-accent-icon flex h-8 w-8 items-center justify-center rounded-lg">
-                <Scale className="h-4 w-4" />
-              </div>
-              <span className="text-sm font-semibold text-[var(--chat-text)]">
-                VerdictAI
+          <div className="sidebar-bottom">
+            <button
+              type="button"
+              className={`language-toggle${language === "bn" ? " is-bn" : ""}`}
+              onClick={toggleLanguage}
+            >
+              <span>{language === "bn" ? "বাং" : "EN"}</span>
+              <span className="toggle-track">
+                <span />
               </span>
-            </div>
-            <p className="text-[11px] leading-relaxed text-[var(--chat-text-muted)]">
-              Chats saved for {CHAT_RETENTION_DAYS} days on this device. AI
-              guidance only — not professional legal advice.
-            </p>
+            </button>
+            <button type="button" className="sidebar-link" onClick={onClose}>
+              Back to site
+            </button>
+            <span className="sidebar-version">
+              Constitution of Bangladesh · 2026
+            </span>
           </div>
         </aside>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <header className="flex items-center justify-between px-4 py-3 md:px-6">
-            <div className="flex items-center gap-2 lg:hidden">
-              <button
-                type="button"
-                onClick={startNewChat}
-                className="rounded-xl border border-[var(--chat-border)] p-2 text-[var(--chat-text-muted)] hover:bg-[var(--chat-hover)] hover:text-[var(--chat-text)]"
-                aria-label="New chat"
-              >
-                <Plus className="h-5 w-5" />
-              </button>
-              <span className="text-sm font-semibold text-[var(--chat-text)]">
-                VerdictAI
-              </span>
+        <section className="chat-main">
+          <header className="chat-header">
+            <button
+              className="icon-button mobile-menu-button"
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open menu"
+            >
+              <Menu />
+            </button>
+            <div className="mobile-title">
+              <Scale size={15} /> verdict<span>ai</span>
             </div>
-            <div className="hidden lg:block" />
-            <div className="flex items-center gap-2">
+            <div className="header-actions">
               <button
-                onClick={() => setShowSettings(true)}
-                className="rounded-xl border border-[var(--chat-border)] p-2 text-[var(--chat-text-muted)] hover:bg-[var(--chat-hover)] hover:text-[var(--chat-text)]"
-                aria-label="Appearance settings"
+                className="theme-button"
+                type="button"
+                onClick={() => setDark((v) => !v)}
+                aria-label={dark ? "Use light mode" : "Use dark mode"}
               >
-                <Palette className="h-5 w-5" />
+                {dark ? <Sun /> : <Moon />}
               </button>
               <button
+                className="icon-button"
+                type="button"
                 onClick={onClose}
-                className="rounded-xl border border-[var(--chat-border)] p-2 text-[var(--chat-text-muted)] hover:bg-[var(--chat-hover)] hover:text-[var(--chat-text)]"
                 aria-label="Close chat"
               >
-                <X className="h-5 w-5" />
+                <X />
               </button>
+              <span className="model-label">
+                Constitutional guide <span className="status-dot" />
+              </span>
             </div>
           </header>
 
-          <div
-            ref={scrollRef}
-            className="chat-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 md:px-6"
-          >
-            {isEmpty ? (
-              <div className="flex min-h-full flex-col items-center justify-center px-4 text-center">
-                <h3 className="font-merriweather text-2xl font-semibold text-[var(--chat-text)] md:text-3xl">
-                  How can I help you today?
-                </h3>
-                <p className="mt-2 max-w-md text-sm text-[var(--chat-text-muted)]">
-                  Ask about legal rights, constitutional law, or everyday
-                  scenarios.
-                </p>
-              </div>
-            ) : (
-              <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col justify-end">
-                <div className="space-y-4">
+          <div className="chat-scroll" ref={scrollRef}>
+            <div className="chat-scroll-inner">
+              {isEmpty ? (
+                <div className="empty-state">
+                  <div className="empty-mark">
+                    <Scale />
+                  </div>
+                  <p className="greeting-small">Good to meet you.</p>
+                  <h1>
+                    What would you like to know
+                    <br className="desktop-only" /> about your rights?
+                  </h1>
+                  <p className="empty-description">
+                    Ask a question about the Constitution of Bangladesh.
+                    <br className="desktop-only" /> I&apos;ll explain it clearly
+                    and show you the source.
+                  </p>
+                </div>
+              ) : (
+                <div className="message-list">
                   {messages.map((message) => (
-                    <div
+                    <article
+                      className={`message ${message.role}`}
                       key={message.id}
-                      className={cn(
-                        "flex gap-3",
-                        message.role === "user"
-                          ? "flex-row-reverse"
-                          : "flex-row"
-                      )}
                     >
-                      <div
-                        className={cn(
-                          "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                          message.role === "user"
-                            ? "chat-accent-icon"
-                            : "chat-bot-icon"
+                      {message.role === "assistant" && (
+                        <div className="message-rail">
+                          <span className="message-avatar assistant">
+                            <Scale />
+                          </span>
+                        </div>
+                      )}
+                      <div className="message-stack">
+                        {message.role === "assistant" && (
+                          <div className="message-name">VerdictAI</div>
                         )}
-                      >
-                        {message.role === "user" ? (
-                          <User className="h-4 w-4" />
-                        ) : (
-                          <Bot className="h-4 w-4" />
-                        )}
-                      </div>
-
-                      <div
-                        className={cn(
-                          "min-w-0 flex-1",
-                          message.role === "user"
-                            ? "flex flex-col items-end"
-                            : ""
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            message.role === "user"
-                              ? "chat-user-bubble max-w-[85%] rounded-2xl rounded-tr-md px-4 py-3"
-                              : "w-full rounded-2xl rounded-tl-md border border-[var(--chat-border)] bg-[var(--chat-bubble-assistant)] px-5 py-4"
-                          )}
-                        >
-                          {message.role === "user" ? (
-                            <p className="text-[15px] font-medium leading-relaxed">
-                              {message.content}
-                            </p>
+                        <div className="message-body">
+                          {message.role === "assistant" ? (
+                            <>
+                              {message.content ? (
+                                <div className="prose-chat">
+                                  <MessageContent content={message.content} />
+                                </div>
+                              ) : null}
+                              {streamingId === message.id && (
+                                <span className="stream-cursor" aria-hidden />
+                              )}
+                            </>
                           ) : (
-                            <MessageContent content={message.content} />
+                            <p>{message.content}</p>
                           )}
                         </div>
-                        <span className="mt-1.5 px-1 text-[11px] text-[var(--chat-text-muted)]">
-                          {message.timestamp.toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
                       </div>
-                    </div>
+                    </article>
                   ))}
-
                   {isLoading && (
-                    <div className="flex gap-3">
-                      <div className="chat-bot-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
-                        <Bot className="h-4 w-4" />
-                      </div>
-                      <div className="flex items-center gap-3 rounded-2xl rounded-tl-md border border-[var(--chat-border)] bg-[var(--chat-bubble-assistant)] px-4 py-3">
-                        <div className="flex gap-1">
-                          {[0, 150, 300].map((delay) => (
-                            <span
-                              key={delay}
-                              className="h-2 w-2 animate-bounce rounded-full"
-                              style={{
-                                background:
-                                  "color-mix(in srgb, var(--accent) 60%, transparent)",
-                                animationDelay: `${delay}ms`,
-                              }}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-sm text-[var(--chat-text-muted)]">
-                          Researching legal sources...
+                    <div
+                      className="typing-state"
+                      aria-label="VerdictAI is thinking"
+                    >
+                      <div className="message-rail">
+                        <span className="message-avatar assistant">
+                          <Scale />
                         </span>
+                      </div>
+                      <div className="typing-bubble">
+                        <span className="dot" />
+                        <span className="dot" />
+                        <span className="dot" />
                       </div>
                     </div>
                   )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
-          <div className="shrink-0 px-4 pb-4 md:px-6 md:pb-6">
-            {isEmpty && (
-              <div className="mx-auto mb-3 flex max-w-2xl flex-wrap justify-center gap-2">
-                {QUICK_SUGGESTIONS.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => sendMessage(s.query)}
-                    disabled={isLoading}
-                    className="rounded-full border border-[var(--chat-border)] bg-[var(--chat-surface)] px-4 py-2 text-sm text-[var(--chat-text-muted)] hover:bg-[var(--chat-hover)] hover:text-[var(--chat-text)] disabled:opacity-50"
-                  >
-                    {s.label}
-                  </button>
-                ))}
+          <div className="composer-area">
+            <div className="composer-inner">
+              {isEmpty && (
+                <div className="suggestions">
+                  {displaySuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      className="suggestion"
+                      onClick={() => sendMessage(suggestion)}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="composer">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (
+                      e.key === "Enter" &&
+                      !e.shiftKey &&
+                      !e.nativeEvent.isComposing
+                    ) {
+                      e.preventDefault();
+                      sendMessage(input);
+                    }
+                  }}
+                  placeholder={
+                    language === "bn"
+                      ? "আপনার অধিকার সম্পর্কে জিজ্ঞাসা করুন…"
+                      : "Ask about your rights…"
+                  }
+                  rows={1}
+                  aria-label="Your question"
+                />
+                <button
+                  className="send-button"
+                  type="button"
+                  onClick={() => sendMessage(input)}
+                  disabled={!input.trim() || isLoading || !!streamingId}
+                  aria-label="Send message"
+                >
+                  <ArrowUp />
+                </button>
               </div>
-            )}
-            <form
-              onSubmit={handleSubmit}
-              className="mx-auto flex max-w-3xl items-end gap-2 rounded-[28px] border border-[var(--chat-border)] bg-[var(--chat-input-bg)] p-2 shadow-sm focus-within:ring-1"
-              style={
-                {
-                  "--tw-ring-color":
-                    "color-mix(in srgb, var(--accent) 20%, transparent)",
-                } as React.CSSProperties
-              }
-            >
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Message VerdictAI..."
-                rows={1}
-                className="max-h-32 min-h-[44px] flex-1 resize-none bg-transparent px-4 py-3 text-sm text-[var(--chat-text)] placeholder-[var(--chat-text-muted)] outline-none"
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                disabled={!input.trim() || isLoading}
-                className="chat-send-btn flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:brightness-110 disabled:opacity-30"
-                aria-label="Send"
-              >
-                <Send className="h-4 w-4" />
-              </button>
-            </form>
+              <p className="disclaimer">
+                VerdictAI provides constitutional information, not legal advice.
+              </p>
+            </div>
           </div>
-        </div>
-      </div>
-
-      <AppearanceSettings
-        open={showSettings}
-        onClose={() => setShowSettings(false)}
-      />
-    </>
+        </section>
+      </main>
+    </div>
   );
 }

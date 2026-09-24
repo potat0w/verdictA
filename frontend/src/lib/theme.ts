@@ -34,7 +34,7 @@ export const tokens = {
   },
 
   // Typography
-  heading: "font-merriweather font-bold text-[var(--page-text)]",
+  heading: "font-semibold text-[var(--page-text)]",
 
   // Buttons
   button: {
