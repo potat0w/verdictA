@@ -54,11 +54,14 @@ function LandingPage() {
       </header>
 
       {mobileOpen && (
-        <div
-          className="flex flex-col gap-4 px-6 pb-6 text-xs uppercase tracking-[0.12em] md:hidden"
-          style={{ borderBottom: "1px solid var(--line)" }}
-        >
-          <button type="button" className="text-left" onClick={() => { openChat(); setMobileOpen(false); }}>
+        <div className="mobile-nav-panel">
+          <button
+            type="button"
+            onClick={() => {
+              openChat();
+              setMobileOpen(false);
+            }}
+          >
             Chat
           </button>
           <a href="#about" onClick={() => setMobileOpen(false)}>

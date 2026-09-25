@@ -29,13 +29,25 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body {
+  overflow-x: clip;
+  max-width: 100%;
 }
 
 body {
   margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-dm-sans), "DM Sans", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
@@ -50,11 +62,20 @@ textarea {
 
 button {
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
 }
 
 /* ——— Landing ——— */
 .site-shell {
-  overflow: hidden;
+  overflow-x: clip;
+  width: 100%;
 }
 
 .site-nav {
@@ -62,7 +83,9 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 clamp(24px, 5vw, 80px);
+  gap: 16px;
+  padding: 0 clamp(20px, 5vw, 80px);
+  padding-top: env(safe-area-inset-top);
 }
 
 .wordmark {
@@ -123,11 +146,20 @@ button {
   border: 0;
   background: transparent;
   color: var(--ink);
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 10px;
+}
+
+.mobile-nav-panel {
+  display: none;
 }
 
 .hero {
   position: relative;
-  min-height: min(730px, calc(100vh - 76px));
+  min-height: min(730px, calc(100svh - 76px));
+  min-height: min(730px, calc(100dvh - 76px));
   display: flex;
   align-items: center;
   padding: 80px clamp(24px, 12vw, 180px);
@@ -205,13 +237,18 @@ button {
   font-size: 10px;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  transition: gap 0.25s ease, background 0.25s ease;
+  transition: gap 0.25s ease, background 0.25s ease, transform 0.2s ease;
   border: 0;
   cursor: pointer;
+  border-radius: 2px;
 }
 
 .button:hover {
   gap: 28px;
+}
+
+.button:active {
+  transform: scale(0.98);
 }
 
 .button-dark {
@@ -477,16 +514,40 @@ button {
 }
 
 /* ——— Chat app ——— */
+.chat-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overflow: hidden;
+  height: 100vh;
+  height: 100dvh;
+  height: var(--app-height, 100dvh);
+  padding:
+    env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background: var(--chat-paper);
+  animation: chat-overlay-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes chat-overlay-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .chat-app {
   display: flex;
+  width: 100%;
   height: 100%;
-  height: 100dvh;
-  max-height: 100%;
-  max-height: 100dvh;
   overflow: hidden;
   background: var(--chat-paper);
   color: var(--ink);
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
 .chat-app.is-dark {
@@ -500,6 +561,10 @@ button {
   --paper: #252522;
 }
 
+.sidebar-backdrop {
+  display: none;
+}
+
 .chat-app .sidebar {
   width: 260px;
   flex: 0 0 260px;
@@ -508,6 +573,7 @@ button {
   padding: 12px 10px 14px;
   background: var(--sidebar);
   border-right: 1px solid var(--line);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .sidebar-head {
@@ -710,9 +776,9 @@ button {
 
 .chat-float-controls {
   position: absolute;
-  top: 10px;
-  right: 12px;
-  left: 12px;
+  top: max(10px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  left: max(12px, env(safe-area-inset-left));
   z-index: 5;
   display: flex;
   align-items: center;
@@ -758,6 +824,7 @@ button {
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
 }
 
 .chat-scroll-inner {
@@ -927,9 +994,12 @@ button {
 
 .msg-table-wrap {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--line);
   border-radius: 10px;
+  overscroll-behavior-x: contain;
 }
 
 .msg-table {
@@ -1023,7 +1093,7 @@ button {
   flex-shrink: 0;
   position: relative;
   margin-top: 0;
-  padding: 8px 0 12px;
+  padding: 8px 0 max(12px, env(safe-area-inset-bottom));
   background: var(--chat-paper);
   border-top: 1px solid transparent;
 }
@@ -1069,7 +1139,7 @@ button {
 
 .composer textarea {
   flex: 1;
-  max-height: 130px;
+  max-height: 140px;
   min-height: 34px;
   padding: 7px 0;
   margin: 0;
@@ -1078,7 +1148,7 @@ button {
   border: 0;
   color: var(--ink);
   background: transparent;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.45;
 }
 
@@ -1156,19 +1226,64 @@ button {
 
 @media (max-width: 700px) {
   .site-nav {
-    height: 65px;
+    height: 60px;
+    padding: 0 18px;
   }
   .desktop-nav,
   .nav-cta {
     display: none;
   }
   .mobile-menu {
+    display: grid;
+  }
+  .mobile-nav-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 18px 18px;
+    border-bottom: 1px solid var(--line);
+    animation: mobile-nav-in 0.22s ease;
+  }
+  .mobile-nav-panel a,
+  .mobile-nav-panel button {
     display: block;
+    width: 100%;
+    padding: 12px 4px;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-align: left;
+  }
+  @keyframes mobile-nav-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
   .hero {
-    min-height: 680px;
-    padding: 70px 24px;
+    min-height: calc(100svh - 60px);
+    min-height: calc(100dvh - 60px);
+    padding: 48px 20px 56px;
     align-items: flex-end;
+  }
+  .site-shell h1 {
+    font-size: clamp(42px, 12vw, 64px);
+    line-height: 1.02;
+  }
+  .hero-intro {
+    max-width: none;
+    margin: 22px 0 28px;
+    font-size: 14px;
+  }
+  .eyebrow {
+    margin-bottom: 18px;
   }
   .hero-image {
     background-position: 62% center;
@@ -1180,72 +1295,103 @@ button {
   .steps-section,
   .chat-section {
     display: block;
-    padding: 92px 24px;
+    padding: 72px 20px;
   }
   .section-label {
-    margin-bottom: 43px;
+    margin-bottom: 28px;
+  }
+  .site-shell h2 {
+    font-size: clamp(34px, 10vw, 52px);
+    line-height: 1.05;
   }
   .intro-text {
-    margin-top: 32px;
+    margin-top: 24px;
+    max-width: none;
   }
   .steps-section .section-heading {
-    margin-bottom: 60px;
+    margin-bottom: 36px;
   }
   .step {
-    grid-template-columns: 42px 1fr 18px;
+    grid-template-columns: 36px 1fr 18px;
     gap: 10px;
+    padding: 22px 0;
+  }
+  .step h3 {
+    font-size: 22px;
   }
   .trust-section {
-    padding: 90px 24px;
+    padding: 72px 20px;
   }
   .trust-section blockquote {
-    margin: 42px 0 55px;
+    margin: 28px 0 40px;
+    font-size: clamp(28px, 8vw, 42px);
   }
   .trust-meta {
     display: block;
   }
   .trust-meta span {
     display: block;
-    margin-top: 24px;
+    margin-top: 20px;
     text-align: left;
   }
   .chat-section .section-heading {
-    margin-bottom: 55px;
+    margin-bottom: 36px;
   }
   .button-outline {
     grid-column: auto;
-    margin-top: 28px;
+    margin-top: 24px;
     transform: none;
   }
   .site-footer {
-    padding: 45px 24px 24px;
-    gap: 28px;
+    padding: 40px 20px 24px;
+    gap: 24px;
   }
   .footer-top {
     flex-direction: column;
     align-items: flex-start;
-    gap: 24px;
+    gap: 20px;
   }
   .footer-links {
     justify-content: flex-start;
     flex-wrap: wrap;
     white-space: normal;
     margin: 0;
-    gap: 18px 24px;
+    gap: 14px 20px;
   }
   .footer-bottom {
     flex-wrap: wrap;
     gap: 10px 16px;
   }
 
+  .sidebar-backdrop {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    border: 0;
+    background: rgba(20, 20, 18, 0.34);
+    backdrop-filter: blur(2px);
+    animation: fade-in 0.2s ease;
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
   .chat-app .sidebar {
-    position: fixed;
-    z-index: 10;
+    position: absolute;
+    z-index: 12;
     inset: 0 auto 0 0;
-    width: min(290px, 85vw);
-    transform: translateX(-100%);
-    transition: transform 0.25s ease;
-    box-shadow: 15px 0 40px rgba(0, 0, 0, 0.08);
+    width: min(300px, 86vw);
+    height: 100%;
+    transform: translateX(-105%);
+    box-shadow: 12px 0 32px rgba(0, 0, 0, 0.12);
+    border-right: 0;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
   }
   .chat-app .sidebar.is-open {
     transform: translateX(0);
@@ -1261,7 +1407,26 @@ button {
   }
   .chat-scroll-inner,
   .composer-inner {
-    width: calc(100% - 24px);
+    width: min(100% - 20px, 48rem);
+  }
+  .chat-scroll-inner {
+    padding: 56px 0 20px;
+  }
+  .empty-state {
+    padding-top: clamp(36px, 8vh, 72px);
+  }
+  .empty-state h1 {
+    font-size: clamp(24px, 7vw, 32px);
+  }
+  .suggestions {
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .suggestion {
+    max-width: 100%;
+    white-space: normal;
+    text-align: left;
+    line-height: 1.35;
   }
   .desktop-only {
     display: none;
@@ -1270,11 +1435,37 @@ button {
     max-width: 100%;
   }
   .message.user .message-body {
-    max-width: 92%;
+    max-width: 88%;
   }
   .message-body p,
   .message-body .prose-chat {
     font-size: 15px;
+  }
+  .msg-table th,
+  .msg-table td {
+    padding: 7px 8px;
+    font-size: 0.88em;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1024px) {
+  .hero {
+    padding: 72px clamp(28px, 6vw, 64px);
+  }
+  .intro-band,
+  .steps-section,
+  .chat-section,
+  .trust-section {
+    padding-left: clamp(28px, 6vw, 64px);
+    padding-right: clamp(28px, 6vw, 64px);
+  }
+  .chat-app .sidebar {
+    width: 220px;
+    flex-basis: 220px;
+  }
+  .chat-scroll-inner,
+  .composer-inner {
+    width: min(100% - 40px, 44rem);
   }
 }
 
@@ -1287,5 +1478,9 @@ button {
   *::after {
     animation: none !important;
     transition-duration: 0.01ms !important;
+  }
+  .chat-overlay,
+  .chat-scroll {
+    scroll-behavior: auto;
   }
 }

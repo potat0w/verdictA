@@ -2,154 +2,104 @@ export type DemoQuestion = {
   id: string;
   label: string;
   query: string;
-  category: "general" | "constitutional";
+  category: "constitutional";
 };
 
+/** Demo prompts grounded in the Constitution of Bangladesh (not foreign law). */
 export const DEMO_QUESTIONS: DemoQuestion[] = [
   {
-    id: "defamation-social",
-    label: "False info on social media",
+    id: "equality-27",
+    label: "Equality before law",
     query:
-      "If I post false information about someone on social media, can I be sued?",
-    category: "general",
-  },
-  {
-    id: "arrest-warrant",
-    label: "Arrest without a warrant",
-    query:
-      "If the police arrest me without showing a warrant, what are my rights?",
-    category: "general",
-  },
-  {
-    id: "free-speech",
-    label: "Criticizing the government",
-    query:
-      "If I criticize the government publicly, am I protected by freedom of speech?",
+      "What does Article 27 of the Constitution of Bangladesh say about equality before the law?",
     category: "constitutional",
   },
   {
-    id: "religious-discrimination",
-    label: "Fired because of religion",
-    query: "If a company fires me because of my religion, is that legal?",
-    category: "general",
-  },
-  {
-    id: "tax-refusal",
-    label: "Refusing to pay taxes",
-    query: "If I refuse to pay taxes, what legal consequences can I face?",
-    category: "general",
-  },
-  {
-    id: "privacy-messages",
-    label: "Private messages accessed",
+    id: "discrimination-28",
+    label: "Discrimination",
     query:
-      "If my private messages are accessed without my permission, has my constitutional right to privacy been violated?",
+      "Does the Constitution of Bangladesh prohibit discrimination on grounds of religion, race, caste, sex or place of birth?",
     category: "constitutional",
   },
   {
-    id: "police-search",
-    label: "Police stop and search",
-    query: "If I am stopped and searched by the police, can I refuse?",
-    category: "general",
-  },
-  {
-    id: "peaceful-protest",
-    label: "Protest without permission",
+    id: "freedom-speech-39",
+    label: "Freedom of speech",
     query:
-      "If I participate in a peaceful protest without permission, can I be arrested?",
+      "What does Article 39 say about freedom of thought, conscience and speech in Bangladesh?",
     category: "constitutional",
   },
   {
-    id: "equality-law",
-    label: "Unequal treatment by law",
+    id: "assembly-37",
+    label: "Peaceful assembly",
     query:
-      "If a law treats one group of citizens differently from another, does it violate the principle of equality before the law?",
+      "What is the right to assemble peacefully under Article 37 of the Bangladesh Constitution?",
     category: "constitutional",
   },
   {
-    id: "right-to-silence",
-    label: "Right to remain silent",
-    query: "If I am accused of a crime, do I have the right to remain silent?",
+    id: "arrest-33",
+    label: "Safeguards on arrest",
+    query:
+      "What safeguards does Article 33 of the Constitution of Bangladesh give a person who is arrested?",
     category: "constitutional",
   },
   {
-    id: "property-compensation",
-    label: "Government takes property",
+    id: "protection-life-32",
+    label: "Right to life",
     query:
-      "If the government takes my property for a public project, am I entitled to compensation?",
+      "What does Article 32 say about protection of the right to life and personal liberty in Bangladesh?",
     category: "constitutional",
   },
   {
-    id: "gender-admission",
-    label: "Denied admission by gender",
+    id: "religion-41",
+    label: "Freedom of religion",
     query:
-      "If I am denied admission to a public institution because of my gender, can I challenge the decision legally?",
+      "What does Article 41 of the Bangladesh Constitution say about freedom of religion?",
     category: "constitutional",
   },
   {
-    id: "copyright-sharing",
-    label: "Sharing copyrighted content",
+    id: "property-42",
+    label: "Right to property",
     query:
-      "If I share copyrighted content online without permission, what penalties could I face?",
-    category: "general",
-  },
-  {
-    id: "detention-without-court",
-    label: "Detained without court hearing",
-    query:
-      "If I am detained for several days without being brought before a court, are my constitutional rights being violated?",
+      "Can the government acquire private property in Bangladesh, and what does Article 42 say about compensation?",
     category: "constitutional",
   },
   {
-    id: "information-access",
-    label: "Denied public information",
+    id: "enforcement-44",
+    label: "Enforcing rights",
     query:
-      "If a public authority refuses to provide information that I am legally entitled to access, what can I do?",
-    category: "general",
-  },
-  {
-    id: "violate-fundamental-rights",
-    label: "Violating fundamental rights",
-    query:
-      "If I violate someone's fundamental rights, what legal action can they take against me?",
-    category: "constitutional",
-  },
-  {
-    id: "gov-violates-rights",
-    label: "Government violates rights",
-    query:
-      "If the government violates a citizen's constitutional rights, what remedies are available?",
+      "How can a citizen enforce fundamental rights under Article 44 of the Constitution of Bangladesh?",
     category: "constitutional",
   },
   {
     id: "law-vs-constitution",
     label: "Law vs Constitution",
-    query: "If a law conflicts with the Constitution, what happens to that law?",
+    query:
+      "If a law conflicts with the Constitution of Bangladesh, what happens to that law?",
     category: "constitutional",
   },
   {
-    id: "challenge-expression",
-    label: "Restricted freedom of expression",
+    id: "writ-102",
+    label: "High Court writs",
     query:
-      "If my freedom of expression is restricted, how can I challenge that decision?",
+      "What powers does the High Court Division have under Article 102 to protect fundamental rights in Bangladesh?",
     category: "constitutional",
   },
   {
-    id: "unconstitutional-action",
-    label: "Unconstitutional government action",
+    id: "citizenship-6",
+    label: "Citizenship",
     query:
-      "If I believe a government action is unconstitutional, where can I seek justice?",
+      "What does the Constitution of Bangladesh say about citizenship of Bangladesh?",
     category: "constitutional",
   },
 ];
 
 export const QUICK_SUGGESTIONS = [
-  "What does Article 27 say about equality?",
-  "Can the police arrest me without a warrant?",
-  "What are my fundamental rights?",
-  "If a law conflicts with the Constitution, what happens?",
-  "আমার মত প্রকাশের অধিকার কী?",
-  "সংবিধানে সমতার কথা কী বলা আছে?",
-  "মৌলিক অধিকারগুলো কী কী?",
-  "পুলিশ ওয়ারেন্ট ছাড়া গ্রেপ্তার করলে কী করব?",
+  "What does Article 27 say about equality before the law?",
+  "What safeguards does Article 33 give on arrest?",
+  "What are the fundamental rights in the Bangladesh Constitution?",
+  "If a Bangladeshi law conflicts with the Constitution, what happens?",
+  "সংবিধানের ২৭ অনুচ্ছেদে সমতা সম্পর্কে কী বলা আছে?",
+  "গ্রেপ্তারের সময় ৩৩ অনুচ্ছেদের সুরক্ষা কী?",
+  "বাংলাদেশের সংবিধানে মৌলিক অধিকারগুলো কী কী?",
+  "আইন সংবিধানের সাথে সাংঘর্ষিক হলে কী হয়?",
 ];

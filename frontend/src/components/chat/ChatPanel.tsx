@@ -69,11 +69,28 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
     const body = document.body;
     const prevHtml = html.style.overflow;
     const prevBody = body.style.overflow;
+    const prevTouch = body.style.touchAction;
     html.style.overflow = "hidden";
     body.style.overflow = "hidden";
+    body.style.touchAction = "none";
+
+    const setAppHeight = () => {
+      const height = window.visualViewport?.height ?? window.innerHeight;
+      html.style.setProperty("--app-height", `${height}px`);
+    };
+    setAppHeight();
+    window.visualViewport?.addEventListener("resize", setAppHeight);
+    window.visualViewport?.addEventListener("scroll", setAppHeight);
+    window.addEventListener("resize", setAppHeight);
+
     return () => {
       html.style.overflow = prevHtml;
       body.style.overflow = prevBody;
+      body.style.touchAction = prevTouch;
+      html.style.removeProperty("--app-height");
+      window.visualViewport?.removeEventListener("resize", setAppHeight);
+      window.visualViewport?.removeEventListener("scroll", setAppHeight);
+      window.removeEventListener("resize", setAppHeight);
     };
   }, []);
 
@@ -115,8 +132,17 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
   }, [messages, activeSessionId, historyReady, persistSession]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, isLoading, streamingId]);
+
+  useEffect(() => {
+    const textarea = inputRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 140)}px`;
+  }, [input]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -242,8 +268,16 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
     language === "bn" ? bnSuggestions : enSuggestions;
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-hidden">
-      <main className={`chat-app${dark ? " is-dark" : ""} h-full`}>
+    <div className="chat-overlay">
+      <main className={`chat-app${dark ? " is-dark" : ""}`}>
+        {sidebarOpen && (
+          <button
+            type="button"
+            className="sidebar-backdrop"
+            aria-label="Close menu"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
         <aside className={`sidebar${sidebarOpen ? " is-open" : ""}`}>
           <div className="sidebar-head">
             <a className="chat-logo" href="/" aria-label="VerdictAI home">
