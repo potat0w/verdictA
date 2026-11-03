@@ -24,6 +24,7 @@ export default function InnerPage({
           <button type="button" onClick={openChat}>
             Chat
           </button>
+          <Link href="/analyze">Analyze</Link>
           <Link href="/#about">About</Link>
           <Link href="/contact">Contact</Link>
         </nav>
@@ -47,6 +48,7 @@ export default function InnerPage({
             <button type="button" onClick={openChat}>
               Chat
             </button>
+            <Link href="/analyze">Analyze</Link>
             <Link href="/#about">About</Link>
             <a href="mailto:hello@verdictai.bd">hello@verdictai.bd</a>
           </div>

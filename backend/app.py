@@ -1,9 +1,19 @@
-from fastapi import FastAPI, Request, Depends, HTTPException, status
+from fastapi import FastAPI, Request, Depends, HTTPException, status, File, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from rag_utils import answer_with_rag
 import rag_utils
+from document_parser import (
+    parse_document,
+    UnsupportedFileType,
+    FileTooLarge,
+    EmptyDocument,
+    MAX_DOCUMENT_BYTES,
+)
+from clause_extractor import extract_clauses
+from document_analyzer import analyze_document, is_rate_limit
+from report_generator import build_report
 import uvicorn
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -83,6 +93,75 @@ async def ask_legal_question(payload: Question):
     except Exception as exc:
         logger.exception("/ask failed: %s", exc)
         raise HTTPException(status_code=500, detail="Failed to generate answer. Check server logs.")
+
+def _analysis_auth_dependency():
+    """Phase 1 does not check a token. Swap this dependency for verify_token later."""
+    return None
+
+
+@app.post("/analyze")
+async def analyze_uploaded_document(
+    file: UploadFile = File(...),
+    _auth: dict | None = Depends(_analysis_auth_dependency),
+):
+    filename = file.filename or ""
+    try:
+        data = await file.read(MAX_DOCUMENT_BYTES + 1)
+        logger.info(
+            "/analyze accepted bytes=%s extension=%s",
+            len(data),
+            os.path.splitext(filename)[1].lower(),
+        )
+        text = parse_document(filename, data)
+        extraction = extract_clauses(text)
+        analyses = analyze_document(extraction.clauses)
+        return build_report(
+            extraction.clauses,
+            analyses,
+            truncated=extraction.truncated,
+        )
+    except UnsupportedFileType as exc:
+        raise HTTPException(status_code=415, detail=str(exc)) from exc
+    except FileTooLarge as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except EmptyDocument as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except FileNotFoundError:
+        logger.error("/analyze missing embeddings")
+        raise HTTPException(
+            status_code=503,
+            detail="Embeddings not found. Please build the index.",
+        )
+    except ValueError as exc:
+        message = str(exc)
+        if "GROQ_API_KEY" in message or "GROQ_MODEL_NAME" in message:
+            logger.error("/analyze missing Groq configuration")
+            raise HTTPException(
+                status_code=503,
+                detail="Groq API is not configured on server.",
+            )
+        logger.error("/analyze failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Failed to analyze document.")
+    except RuntimeError as exc:
+        message = str(exc)
+        if "GROQ_API_KEY" in message or "GROQ_MODEL_NAME" in message:
+            logger.error("/analyze missing Groq configuration")
+            raise HTTPException(
+                status_code=503,
+                detail="Groq API is not configured on server.",
+            )
+        logger.error("/analyze failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Failed to analyze document.")
+    except Exception as exc:
+        if is_rate_limit(exc):
+            logger.error("/analyze rate limited")
+            raise HTTPException(
+                status_code=503,
+                detail="The analysis service is busy. Try again shortly.",
+            )
+        logger.error("/analyze failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Failed to analyze document.")
+
 
 @app.get("/")
 async def root():

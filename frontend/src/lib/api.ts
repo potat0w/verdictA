@@ -116,6 +116,74 @@ export async function login(
   return response.json();
 }
 
+export interface RelatedArticleReport {
+  article_key: string;
+  display_number: string | null;
+  quote: string;
+  legal_status_flags: string[];
+}
+
+export interface ClauseReport {
+  clause_id: string;
+  heading: string | null;
+  original_text: string;
+  original_index: number;
+  category: string;
+  status: string;
+  risk_level: "LOW" | "MEDIUM" | "HIGH" | string;
+  related_articles: RelatedArticleReport[];
+  why_flagged: string;
+  analysis: string;
+  recommendation: string;
+  scope_note: string;
+  skipped: boolean;
+}
+
+export interface AnalysisReport {
+  summary: {
+    total_clauses: number;
+    truncated: boolean;
+    categories: Record<string, number>;
+    risk_levels: Record<string, number>;
+  };
+  clauses: ClauseReport[];
+  by_risk: Record<string, string[]>;
+  disclaimer: string;
+}
+
+export async function analyzeDocument(file: File): Promise<AnalysisReport> {
+  const token = getToken();
+  const body = new FormData();
+  body.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/analyze`, {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    try {
+      const errorObj = JSON.parse(text);
+      if (errorObj?.detail) {
+        throw new Error(
+          typeof errorObj.detail === "string"
+            ? errorObj.detail
+            : JSON.stringify(errorObj.detail)
+        );
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message !== text) throw err;
+    }
+    throw new Error(text || `Request failed with status ${response.status}`);
+  }
+
+  return response.json();
+}
+
 export async function verifyToken(token: string): Promise<{ message: string }> {
   const response = await fetch(`${API_BASE_URL}/verify-token/${token}`);
   if (!response.ok) {

@@ -29,11 +29,25 @@ def get_groq_client() -> OpenAI:
     )
 
 
-def generate_text(prompt: str) -> str:
+def generate_text(
+    prompt: str,
+    *,
+    temperature: float | None = None,
+    json_mode: bool = False,
+) -> str:
+    """Completion call. Extra keyword arguments are optional and default off.
+
+    Existing callers that pass only a prompt keep the previous request shape.
+    """
     client = get_groq_client()
     model = get_groq_model()
-    response = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    kwargs: dict = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+    if json_mode:
+        kwargs["response_format"] = {"type": "json_object"}
+    response = client.chat.completions.create(**kwargs)
     return response.choices[0].message.content or ""

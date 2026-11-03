@@ -11,3 +11,5 @@ SQLAlchemy
 passlib
 python-dotenv
 openai
+pypdf
+python-docx

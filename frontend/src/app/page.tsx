@@ -37,6 +37,7 @@ function LandingPage() {
           <button type="button" onClick={openChat}>
             Chat
           </button>
+          <a href="/analyze">Analyze</a>
           <a href="#about">About</a>
           <a href="#contact">Contact</a>
         </nav>
@@ -64,6 +65,9 @@ function LandingPage() {
           >
             Chat
           </button>
+          <a href="/analyze" onClick={() => setMobileOpen(false)}>
+            Analyze
+          </a>
           <a href="#about" onClick={() => setMobileOpen(false)}>
             About
           </a>
@@ -212,6 +216,7 @@ function LandingPage() {
             <button type="button" onClick={openChat}>
               Chat
             </button>
+            <a href="/analyze">Analyze</a>
             <a href="#about">About</a>
             <a href="mailto:hello@verdictai.bd">hello@verdictai.bd</a>
           </div>
