@@ -1,10 +1,6 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "https://verdicta-1.onrender.com";
-
-// Voice session minting stays on the local API so the ElevenLabs key never
-// reaches the browser. Text chat continues to use API_BASE_URL.
-const VOICE_API_URL =
-  process.env.NEXT_PUBLIC_VOICE_API_URL ?? "http://127.0.0.1:8000";
+// The browser calls this site. The server forwards to the legal API, so a
+// hosting error without CORS headers cannot block the page.
+const API_BASE_URL = "/api/verdict";
 
 export interface AskResponse {
   answer: string;
@@ -46,7 +42,7 @@ export interface VoiceSession {
 }
 
 export async function getVoiceSession(): Promise<VoiceSession> {
-  const response = await fetch(`${VOICE_API_URL}/voice/session`);
+  const response = await fetch(`${API_BASE_URL}/voice/session`);
   if (!response.ok) {
     const text = await response.text();
     try {

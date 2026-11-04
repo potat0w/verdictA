@@ -7,4 +7,4 @@ npm install
 npm run dev
 ```
 
-The site runs at http://localhost:3000. Point `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_VOICE_API_URL` at the API, usually `http://127.0.0.1:8000`.
+The site runs at http://localhost:3000. Set `NEXT_PUBLIC_API_URL` to the API, usually `http://127.0.0.1:8000`. The page calls this site, which forwards the request.

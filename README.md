@@ -65,10 +65,9 @@ Create `frontend/.env.local`:
 
 ```
 NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
-NEXT_PUBLIC_VOICE_API_URL=http://127.0.0.1:8000
 ```
 
-`NEXT_PUBLIC_API_URL` is the text and document API. `NEXT_PUBLIC_VOICE_API_URL` is only for starting a voice session. The browser never receives the ElevenLabs key or the webhook secret.
+The browser calls this site, and the site forwards to that API. On Vercel, set `NEXT_PUBLIC_API_URL` to the public API before building. The browser never receives the ElevenLabs key or the webhook secret.
 
 ## Run
 
