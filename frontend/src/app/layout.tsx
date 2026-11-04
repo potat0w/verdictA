@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   title: "VerdictAI — Your Constitution, explained.",
   description:
     "A calm, bilingual constitutional companion grounded in the official Constitution of Bangladesh.",
+  icons: {
+    icon: [{ url: "/favico.jpeg", type: "image/jpeg" }],
+    apple: "/favico.jpeg",
+  },
 };
 
 export const viewport: Viewport = {
