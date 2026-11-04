@@ -8,7 +8,45 @@ function escapeHtml(text: string) {
 function formatInline(text: string) {
   return escapeHtml(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong class="msg-bold">$1</strong>')
-    .replace(/__(.+?)__/g, '<span class="msg-semibold">$1</span>');
+    .replace(/__(.+?)__/g, '<span class="msg-semibold">$1</span>')
+    .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em class="msg-em">$2</em>');
+}
+
+function normalizeLine(line: string) {
+  return line
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\uFF03/g, "#")
+    .trim();
+}
+
+function stripWrap(line: string) {
+  const wrapped = /^(?:\*\*|__)([\s\S]+)(?:\*\*|__)$/.exec(line);
+  return wrapped ? wrapped[1].trim() : line;
+}
+
+function headingFrom(line: string): { level: 1 | 2 | 3; text: string } | null {
+  const match = /^(#{1,6})\s+(.+)$/.exec(stripWrap(line).replace(/^\\+/, ""));
+  if (!match) return null;
+  const text = match[2]
+    .replace(/^(?:#+\s*)+/, "")
+    .replace(/\s+#+\s*$/, "")
+    .trim();
+  if (!text) return null;
+  return { level: Math.min(match[1].length, 3) as 1 | 2 | 3, text };
+}
+
+function isListLine(line: string) {
+  const text = stripWrap(line);
+  return /^\d+\.\s+/.test(text) || /^[-*•]\s+/.test(text);
+}
+
+function isSectionLabel(line: string) {
+  return (
+    line.length > 0 &&
+    line.length <= 90 &&
+    !/[.!?।]$/.test(line) &&
+    !/^[-*•#\d]/.test(line)
+  );
 }
 
 function splitCells(line: string) {
@@ -47,7 +85,7 @@ function parseBlocks(content: string): Block[] {
 
   while (i < lines.length) {
     const line = lines[i];
-    const trimmed = line.trim();
+    const trimmed = normalizeLine(line);
 
     if (!trimmed) {
       i += 1;
@@ -69,13 +107,9 @@ function parseBlocks(content: string): Block[] {
       continue;
     }
 
-    const heading = /^(#{1,3})\s+(.+)$/.exec(trimmed);
+    const heading = headingFrom(trimmed);
     if (heading) {
-      blocks.push({
-        type: "heading",
-        level: heading[1].length as 1 | 2 | 3,
-        text: heading[2],
-      });
+      blocks.push({ type: "heading", ...heading });
       i += 1;
       continue;
     }
@@ -137,6 +171,18 @@ function parseBlocks(content: string): Block[] {
       continue;
     }
 
+    let next = i + 1;
+    while (next < lines.length && !normalizeLine(lines[next])) next += 1;
+    if (
+      isSectionLabel(trimmed) &&
+      next < lines.length &&
+      isListLine(normalizeLine(lines[next]))
+    ) {
+      blocks.push({ type: "heading", level: 3, text: trimmed });
+      i += 1;
+      continue;
+    }
+
     blocks.push({ type: "p", text: trimmed });
     i += 1;
   }
@@ -153,12 +199,7 @@ function renderRichText(text: string) {
   ));
 }
 
-export default function MessageContent({ content }: { content: string }) {
-  const blocks = parseBlocks(content);
-
-  return (
-    <div className="msg-content">
-      {blocks.map((block, idx) => {
+function renderBlock(block: Block, idx: number) {
         if (block.type === "table") {
           const [header, ...body] = block.rows;
           return (
@@ -233,7 +274,37 @@ export default function MessageContent({ content }: { content: string }) {
             {renderRichText(block.text)}
           </p>
         );
-      })}
+}
+
+type Section = { heading: Extract<Block, { type: "heading" }> | null; body: Block[] };
+
+function groupSections(blocks: Block[]): Section[] {
+  const sections: Section[] = [];
+  let current: Section = { heading: null, body: [] };
+
+  for (const block of blocks) {
+    if (block.type === "heading" && block.level <= 2) {
+      if (current.heading || current.body.length > 0) sections.push(current);
+      current = { heading: block, body: [] };
+      continue;
+    }
+    current.body.push(block);
+  }
+  if (current.heading || current.body.length > 0) sections.push(current);
+  return sections;
+}
+
+export default function MessageContent({ content }: { content: string }) {
+  const sections = groupSections(parseBlocks(content));
+
+  return (
+    <div className="msg-content">
+      {sections.map((section, sectionIdx) => (
+        <section className="msg-section" key={sectionIdx}>
+          {section.heading ? renderBlock(section.heading, 0) : null}
+          {section.body.map((block, idx) => renderBlock(block, idx + 1))}
+        </section>
+      ))}
     </div>
   );
 }
