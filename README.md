@@ -1,233 +1,134 @@
-# VerdictAI - AI-Powered Legal Assistant
+# VerdictAI
 
-VerdictAI is a comprehensive legal assistance platform that combines a modern web interface with an AI-powered backend for answering legal questions.
+VerdictAI answers questions about the Constitution and statutes of Bangladesh, in English or Bangla. Text chat returns a full answer. Voice chat speaks a shorter summary of that same answer. An uploaded PDF, DOCX, or TXT can be compared with the stored law.
 
-## Architecture
+This is legal information, not legal advice.
 
-### Frontend (Next.js + TypeScript)
-- **Location**: `frontend/`
-- **Framework**: Next.js 15 with TypeScript
-- **Styling**: Tailwind CSS with custom legal theme
-- **Icons**: Lucide React
-- **Features**: 
-  - Modern, responsive design
-  - Dark theme with gold accents
-  - AI chat interface
-  - Contact forms
-  - Professional legal services presentation
+## Stack
 
-### Backend (FastAPI + Python)
-- **Location**: `backend/`
-- **Framework**: FastAPI
-- **AI**: Google Gemini 2.5 Flash
-- **RAG System**: FAISS + Sentence Transformers
-- **Features**:
-  - Legal document retrieval
-  - AI-powered question answering
-  - CORS support for frontend integration
+- Frontend: Next.js 16, React 19, TypeScript
+- Backend: FastAPI
+- Answers: Groq
+- Retrieval: FAISS plus keyword search over the constitution and other stored Acts
+- Voice: ElevenLabs. The API key stays on the server.
 
-## Quick Start
+## Requirements
 
-### Prerequisites
-- Node.js 18+ and npm
-- Python 3.8+
-- Google Gemini API key
+- Node.js 20+
+- Python 3.12
+- A Groq API key and model name
 
-### Installation
+Voice also needs an ElevenLabs agent. Text chat works without it.
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd VerdictAI
-   ```
+## Setup
 
-2. **Install Frontend Dependencies**
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-3. **Install Backend Dependencies**
-   ```bash
-   cd ../backend
-   pip install -r requirements.txt
-   ```
-
-4. **Set up Google Gemini API Key**
-   - Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
-   - Update the API key in `backend/rag_utils.py`
-
-### Running the Application
-
-#### Option 1: Use the batch script (Windows)
 ```bash
-start_dev.bat
+git clone https://github.com/potat0w/verdictA.git
+cd verdictA
 ```
 
-#### Option 2: Manual startup
+### Backend
 
-**Terminal 1 - Backend:**
 ```bash
 cd backend
-python -m uvicorn app:app --reload --port 8000
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
 ```
 
-**Terminal 2 - Frontend:**
+Add these to `backend/.env`. Do not commit that file.
+
+```
+GROQ_API_KEY=
+GROQ_MODEL_NAME=
+```
+
+`.env.example` lists the voice settings. `ELEVENLABS_WEBHOOK_SECRET` is the shared secret for `POST /voice/ask`. `ELEVENLABS_API_KEY` and `ELEVENLABS_AGENT_ID` are used only to start a voice session. `VOICE_ANSWER_TOKEN_BUDGET` caps the spoken answer. The default is 180, about 720 characters. Text answers use a separate, larger budget.
+
+The search index lives in `backend/embeddings/` (`faiss.index`, `chunk_metadata.pkl`, and `index_meta.json`). Rebuild it only when the source law changes:
+
+```bash
+python build_index.py
+```
+
+That reads `backend/processed_law.json`.
+
+### Frontend
+
 ```bash
 cd frontend
-npm run dev
-```
-
-### Access the Application
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-
-## Features
-
-### Frontend Components
-- **Header**: Navigation with contact info
-- **Hero**: Main landing section with AI assistant intro
-- **Services**: Legal service offerings
-- **About**: Company information and expertise
-- **Team**: Attorney profiles
-- **LegalAI**: AI chat interface (connects to backend)
-- **Contact**: ment booking form
-- **CTA**: Call-to-action sections
-- **Footer**: Complete site footer
-
-### Backend API
-- **POST /ask**: Submit legal questions to AI
-- **GET /**: API health check
-- **CORS**: Configured for frontend integration
-
-## Configuration
-
-### Frontend Customization
-- **Colors**: Edit `frontend/tailwind.config.ts` for theme colors
-- **Styling**: Modify `frontend/src/app/globals.css` for global styles
-- **Components**: Update individual components in `frontend/src/components/`
-
-### Backend Configuration
-- **API Key**: Update Google Gemini API key in `backend/rag_utils.py`
-- **CORS**: Modify allowed origins in `backend/app.py`
-- **RAG System**: Customize legal documents and embeddings
-
-## Project Structure
-
-```
-VerdictAI/
-├── frontend/
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── globals.css
-│   │   │   ├── layout.tsx
-│   │   │   └── page.tsx
-│   │   └── components/
-│   │       ├── Header.tsx
-│   │       ├── Hero.tsx
-│   │       ├── Services.tsx
-│   │       ├── About.tsx
-│   │       ├── Team.tsx
-│   │       ├── LegalAI.tsx
-│   │       ├── Contact.tsx
-│   │       ├── CTA.tsx
-│   │       └── Footer.tsx
-│   ├── tailwind.config.ts
-│   └── package.json
-├── backend/
-│   ├── app.py
-│   ├── rag_utils.py
-│   ├── requirements.txt
-│   └── embeddings/
-│       ├── faiss.index
-│       └── chunk_metadata.pkl
-└── README.md
-```
-
-## 🎯 Key Features
-
-### AI Legal Assistant
-- **Instant Responses**: Get legal answers immediately
-- **24/7 Availability**: No waiting for office hours
-- **Comprehensive Knowledge**: Trained on legal documents
-- **Confidential**: Secure and private
-
-### Professional Design
-- **Dark Theme**: Professional legal aesthetic
-- **Gold Accents**: Premium feel
-- **Responsive**: Works on all devices
-- **Modern UI**: Clean, professional interface
-
-### Legal Services
-- **Multiple Practice Areas**: Contract, Family, Criminal, Business Law
-- **Expert Team**: Professional attorney profiles
-- **Contact Forms**: Easy appointment booking
-- **Service Descriptions**: Detailed legal service information
-
-## 🔒 Security & Privacy
-
-- **CORS Protection**: Configured for secure frontend-backend communication
-- **API Key Security**: Store API keys securely
-- **Data Privacy**: No personal data stored
-- **Disclaimer**: Clear legal disclaimers included
-
-## 🛠️ Development
-
-### Adding New Components
-1. Create component in `frontend/src/components/`
-2. Import and add to `frontend/src/app/page.tsx`
-3. Style using Tailwind CSS classes
-
-### Modifying AI Responses
-1. Update prompt in `backend/rag_utils.py`
-2. Modify legal document embeddings
-3. Test with different question types
-
-### Customizing Theme
-1. Edit `frontend/tailwind.config.ts` for colors
-2. Update `frontend/src/app/globals.css` for global styles
-3. Modify component-specific styling
-
-## 📞 Support
-
-For questions or issues:
-- Check the console for error messages
-- Verify API keys are correctly set
-- Ensure all dependencies are installed
-- Test backend connectivity
-
-## 📄 License
-
-This project is for educational and demonstration purposes. Please ensure compliance with local laws and regulations when using AI for legal advice. 
-
-## Backend setup
-
-- Create a `.env` file in `backend/` with:
-
-```
-GEMINI_API_KEY=your_key_here
-```
-
-- Install deps and run:
-
-```
-pip install -r backend/requirements.txt
-uvicorn backend.app:app --reload
-```
-
-Ensure `backend/embeddings/` contains `faiss.index` and `chunk_metadata.pkl`. Build with:
-
-```
-python backend/build_index.py
-```
-
-## Frontend setup
-
-- In `frontend/`:
-
-```
 npm install
+```
+
+Create `frontend/.env.local`:
+
+```
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_VOICE_API_URL=http://127.0.0.1:8000
+```
+
+`NEXT_PUBLIC_API_URL` is the text and document API. `NEXT_PUBLIC_VOICE_API_URL` is only for starting a voice session. The browser never receives the ElevenLabs key or the webhook secret.
+
+## Run
+
+From `backend/`, with the virtualenv active:
+
+```bash
+uvicorn app:app --host 127.0.0.1 --port 8000
+```
+
+From `frontend/`:
+
+```bash
 npm run dev
 ```
 
-Optionally set `NEXT_PUBLIC_API_URL` to your backend URL. # verdictA
+- Site: http://localhost:3000
+- API: http://127.0.0.1:8000
+- Health: http://127.0.0.1:8000/health
+
+For voice, the ElevenLabs agent must be able to call `POST /voice/ask` on a public HTTPS URL, with the webhook secret. A local server is not reachable from ElevenLabs until that URL is in place. Start a new voice session after changing the agent prompt.
+
+## What the app does
+
+Text chat (`POST /ask`) retrieves matching passages and writes a detailed answer. The language follows the question: a Bangla question is answered in Bangla, an English question in English. Recent chat turns can be sent as `history` so a follow-up keeps the earlier facts. Chat history in the browser is kept locally for three days.
+
+Voice uses the same retrieval and legal answer, then returns a short summary. That summary is what gets spoken. Lower `VOICE_ANSWER_TOKEN_BUDGET` to spend fewer voice credits.
+
+Document analysis (`POST /analyze`) accepts one PDF, DOCX, or TXT file up to 5 MB. Scanned PDFs are not read.
+
+## API
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/` | Service check |
+| `GET` | `/health` | Index and Groq configuration |
+| `GET` | `/warmup` | Load the search models |
+| `POST` | `/ask` | Detailed answer. Body: `query`, optional `language` (`en` or `bn`), optional `history` |
+| `POST` | `/voice/ask` | Spoken summary. Header `X-VerdictAI-Webhook-Secret` or `Authorization: Bearer`. Body: `query`, `language` |
+| `GET` | `/voice/session` | Conversation token or public agent id. Does not return secrets |
+| `POST` | `/analyze` | Multipart file upload |
+
+`POST /ask` and `POST /voice/ask` both respond with `{ "answer": "..." }`.
+
+## Tests
+
+From `backend/`, with the virtualenv active:
+
+```bash
+pytest
+```
+
+## Project layout
+
+```
+frontend/src/app/            pages
+frontend/src/components/chat chat and voice
+frontend/src/lib/api.ts      API client
+backend/app.py               HTTP API
+backend/rag_utils.py         retrieval and answers
+backend/answer_quality.py    citation checks and the voice summary
+backend/embeddings/          search index
+backend/tests/               API and answer tests
+```
