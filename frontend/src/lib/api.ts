@@ -1,6 +1,11 @@
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "https://verdicta-1.onrender.com";
 
+// Voice session minting stays on the local API so the ElevenLabs key never
+// reaches the browser. Text chat continues to use API_BASE_URL.
+const VOICE_API_URL =
+  process.env.NEXT_PUBLIC_VOICE_API_URL ?? "http://127.0.0.1:8000";
+
 export interface AskResponse {
   answer: string;
 }
@@ -35,9 +40,32 @@ export function clearToken() {
   }
 }
 
+export interface VoiceSession {
+  agentId?: string;
+  conversationToken?: string;
+}
+
+export async function getVoiceSession(): Promise<VoiceSession> {
+  const response = await fetch(`${VOICE_API_URL}/voice/session`);
+  if (!response.ok) {
+    const text = await response.text();
+    try {
+      const errorObj = JSON.parse(text);
+      if (typeof errorObj?.detail === "string") {
+        throw new Error(errorObj.detail);
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message !== text) throw err;
+    }
+    throw new Error(text || `Request failed with status ${response.status}`);
+  }
+  return response.json();
+}
+
 export async function askLegalQuestion(
   query: string,
-  language?: "en" | "bn"
+  language?: "en" | "bn",
+  history?: { role: "user" | "assistant"; content: string }[]
 ): Promise<AskResponse> {
   const token = getToken();
   const response = await fetch(`${API_BASE_URL}/ask`, {
@@ -49,6 +77,7 @@ export async function askLegalQuestion(
     body: JSON.stringify({
       query,
       ...(language ? { language } : {}),
+      ...(history && history.length ? { history } : {}),
     }),
   });
 

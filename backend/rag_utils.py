@@ -14,7 +14,6 @@ META_PATH = os.path.join(EMBED_DIR, "chunk_metadata.pkl")
 INDEX_META_PATH = os.path.join(EMBED_DIR, "index_meta.json")
 DEFAULT_EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 EMBED_MODEL_NAME = DEFAULT_EMBED_MODEL
-CONTEXT_CHAR_BUDGET = 2000
 SEMANTIC_CANDIDATES = 20
 LEXICAL_CANDIDATES = 20
 
@@ -164,43 +163,228 @@ def retrieve_chunks(
     return [attach_legal_status_flags(_metadata[row_id]) for row_id in chosen]
 
 
-def answer_with_rag(query: str, language: Optional[str] = None) -> str:
-    from groq_client import generate_text
+ANSWER_TOKEN_BUDGET = 2200
+
+
+def voice_answer_token_budget() -> int:
+    """Spoken-answer token cap. Smaller than the text budget so less text reaches TTS."""
+    raw = os.getenv("VOICE_ANSWER_TOKEN_BUDGET", "").strip()
+    if raw.isdigit() and int(raw) > 0:
+        return int(raw)
+    return 180
+
+
+def spoken_character_limit(token_budget: int) -> int:
+    """Rough speech length for a token budget. Four characters is about one token."""
+    return token_budget * 4
+
+
+def _same_article_parts(chunk: dict) -> list[dict]:
+    """Stored parts of one constitution article, capped so a long article cannot crowd out the others."""
+    key = chunk.get("article_key")
+    collection = chunk.get("collection")
+    if not key or not str(collection or "").startswith("constitution") or not _metadata:
+        return [chunk]
+    parts = [
+        row
+        for row in _metadata
+        if row.get("collection") == collection and str(row.get("article_key")) == str(key)
+    ]
+    parts.sort(key=lambda row: row.get("chunk_id") or "")
+    kept: list[dict] = []
+    total = 0
+    for part in parts:
+        text = (part.get("content") or "").strip()
+        if len(text) < 40:
+            continue
+        if total >= 2000:
+            break
+        kept.append(part)
+        total += len(text)
+    return kept or [chunk]
+
+
+def _statute_chunks(query: str, language: Optional[str]) -> list[dict]:
+    """Same-language statute passages that share the question's words."""
+    from answer_quality import (
+        prefer_general_statutes,
+        select_relevant_chunks,
+        statutes_about_the_issue,
+    )
+
+    if language not in ("en", "bn") or not _metadata:
+        return []
+    row_ids = [
+        index
+        for index, chunk in enumerate(_metadata)
+        if chunk.get("collection") == "other-acts" and chunk.get("language") == language
+    ]
+    if not row_ids:
+        return []
+    ranked_ids = _bm25_for(f"other-acts-{language}", row_ids).rank(query, 40)
+    ranked = [attach_legal_status_flags(_metadata[row_id]) for row_id in ranked_ids]
+    matched = select_relevant_chunks(query, ranked, limit=12)
+    matched = statutes_about_the_issue(query, matched)
+    return prefer_general_statutes(query, matched)[:3]
+
+
+def _answer_chunks(query: str, language: Optional[str], history) -> list[dict]:
+    from answer_quality import (
+        on_the_same_issue,
+        retrieval_language,
+        retrieval_text,
+        select_relevant_chunks,
+    )
+
+    search_text = retrieval_text(query, history)
+    search_language = retrieval_language(query, language)
+    ranked = retrieve_chunks(search_text, top_k=20, language=search_language)
+    selected = select_relevant_chunks(search_text, ranked)
+    constitution: list[dict] = []
+    seen: set[str] = set()
+    for chunk in selected:
+        for part in _same_article_parts(chunk):
+            identity = str(part.get("chunk_id") or id(part))
+            if identity in seen:
+                continue
+            seen.add(identity)
+            constitution.append(attach_legal_status_flags(part))
+    statutes = _statute_chunks(query, search_language)
+    constitution = on_the_same_issue(search_text, statutes, constitution)
+    logging.info(
+        "answer sources constitution=%s statute=%s",
+        len(constitution),
+        len(statutes),
+    )
+    return constitution + statutes
+
+
+def summarize_for_voice(answer: str, language: Optional[str]) -> str:
+    """Short speech from a finished legal answer. The long text is not what gets spoken.
+
+    Retrieval and the legal answer stay as they are. This only limits the words
+    sent onward for text-to-speech.
+    """
+    from answer_quality import (
+        build_voice_summary_prompt,
+        clean_answer,
+        spoken_form,
+        trim_spoken,
+        voice_summary_instructions,
+        without_new_references,
+    )
+    from groq_client import generate_text, get_groq_model
+
+    budget = voice_answer_token_budget()
+    limit = spoken_character_limit(budget)
+    plain = spoken_form(answer)
+    if len(plain) <= limit:
+        return plain
+
+    effort = "low" if "gpt-oss" in get_groq_model() else None
+    instructions = voice_summary_instructions(language)
+    prompt = build_voice_summary_prompt(answer)
+
+    def complete(max_tokens: int) -> str:
+        return clean_answer(
+            generate_text(
+                prompt,
+                system=instructions,
+                temperature=0,
+                max_tokens=max_tokens,
+                reasoning_effort=effort,
+            )
+        )
+
+    # The model may spend part of max_tokens on reasoning. The spoken cap below
+    # is what limits the characters sent to text-to-speech.
+    summary = complete(budget + 256)
+    if not summary and effort is not None:
+        summary = complete((budget + 256) * 2)
+    spoken = without_new_references(answer, spoken_form(summary))
+    if not spoken:
+        return trim_spoken(plain, limit)
+    return trim_spoken(spoken, limit)
+
+
+def answer_with_rag(
+    query: str,
+    language: Optional[str] = None,
+    *,
+    history=None,
+    voice: bool = False,
+) -> str:
+    """Legal answer for POST /ask. Voice receives a spoken summary of that answer."""
+    from answer_quality import (
+        append_citation_note,
+        answer_problems,
+        build_answer_prompt,
+        clean_answer,
+        insufficient_answer,
+        legal_system_prompt,
+        question_script,
+        repair_answer,
+        response_language,
+        unrecognized_question,
+    )
+    from groq_client import generate_text, get_groq_model
 
     _lazy_init_models()
-
     start_time = time.time()
+    reply_language = response_language(query, language)
+    if question_script(query) is None:
+        logging.info("RAG query completed in %.2fs", time.time() - start_time)
+        return unrecognized_question(reply_language)
+    chunks = _answer_chunks(query, language, history)
+    if not chunks:
+        logging.info("RAG query completed in %.2fs", time.time() - start_time)
+        return insufficient_answer(reply_language)
 
-    top_chunks = retrieve_chunks(query, top_k=3, language=language)
+    system = legal_system_prompt(reply_language)
+    prompt = build_answer_prompt(query, chunks, reply_language, history)
 
-    context_parts = []
-    for c in top_chunks:
-        content = c["content"]
-        if len(content) > CONTEXT_CHAR_BUDGET:
-            content = content[:CONTEXT_CHAR_BUDGET] + "..."
-        block = f"{c['chunk_type'].capitalize()} from {c['act_title']}:\n{content}"
-        flags = c.get("legal_status_flags") or []
-        if flags:
-            block += f"\nLegal status notes: {', '.join(flags)}"
-        context_parts.append(block)
+    effort = "low" if "gpt-oss" in get_groq_model() else None
 
-    context = "\n\n".join(context_parts)
+    def complete(text: str) -> str:
+        answer_text = clean_answer(
+            generate_text(
+                text,
+                system=system,
+                temperature=0,
+                max_tokens=ANSWER_TOKEN_BUDGET,
+                reasoning_effort=effort,
+            )
+        )
+        if answer_text or effort is None:
+            return answer_text
+        return clean_answer(
+            generate_text(
+                text,
+                system=system,
+                temperature=0,
+                max_tokens=ANSWER_TOKEN_BUDGET * 2,
+                reasoning_effort=effort,
+            )
+        )
 
-    prompt = f"""You are VerdictAI, a guide to the Constitution and laws of Bangladesh.
-Answer ONLY from the Bangladesh legal texts below.
-Do not use or mention United States, UK, or any other foreign law.
-If the texts are not enough, say briefly what is missing and stay within Bangladesh constitutional principles.
-Answer in the same language as the question (Bangla or English). Be concise and name article numbers when the texts include them.
+    answer = repair_answer(complete(prompt), chunks)
+    problems = answer_problems(answer, chunks)
+    if problems:
+        rewritten = complete(
+            prompt
+            + "\n\nThe previous answer used "
+            + ", ".join(problems)
+            + ", which are not in the legal texts. Rewrite the full answer without those. Name only provisions from the list above, and do not name a court or office the texts do not name.\nAnswer:"
+        )
+        if rewritten and len(answer_problems(rewritten, chunks)) <= len(problems):
+            answer = rewritten
+        problems = answer_problems(answer, chunks)
+        if problems:
+            answer = append_citation_note(answer, problems, reply_language)
 
-Legal texts:
-{context}
-
-Question: {query}
-Answer:"""
-
-    answer = generate_text(prompt)
-
-    total_time = time.time() - start_time
-    logging.info(f"RAG query completed in {total_time:.2f}s")
-
+    if not answer:
+        answer = insufficient_answer(reply_language)
+    if voice:
+        answer = summarize_for_voice(answer, reply_language)
+    logging.info("RAG query completed in %.2fs", time.time() - start_time)
     return answer

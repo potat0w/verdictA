@@ -13,3 +13,5 @@ python-dotenv
 openai
 pypdf
 python-docx
+pytest
+httpx

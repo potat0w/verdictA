@@ -1,4 +1,10 @@
-from fastapi import FastAPI, Request, Depends, HTTPException, status, File, UploadFile
+import json
+import secrets
+import urllib.error
+import urllib.parse
+import urllib.request
+
+from fastapi import FastAPI, Request, Depends, HTTPException, status, File, UploadFile, Header
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -59,19 +65,64 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+class ChatTurn(BaseModel):
+    role: str
+    content: str
+
+
 class Question(BaseModel):
     query: str
     language: str | None = None
+    history: list[ChatTurn] | None = None
 
-@app.post("/ask")
-async def ask_legal_question(payload: Question):
+class VoiceQuestion(BaseModel):
+    query: str
+    language: str
+
+
+def _webhook_secret_matches(provided: str | None, expected: str) -> bool:
+    if not provided:
+        return False
+    return secrets.compare_digest(provided.encode("utf-8"), expected.encode("utf-8"))
+
+
+def _require_elevenlabs_webhook(
+    authorization: str | None,
+    webhook_secret_header: str | None,
+) -> None:
+    """Fail closed unless the configured webhook secret matches."""
+    expected = os.getenv("ELEVENLABS_WEBHOOK_SECRET", "").strip()
+    if not expected:
+        raise HTTPException(status_code=503, detail="Voice webhook is not configured.")
+    bearer_token = ""
+    if authorization:
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() == "bearer":
+            bearer_token = token.strip()
+    if _webhook_secret_matches(webhook_secret_header, expected) or _webhook_secret_matches(
+        bearer_token, expected
+    ):
+        return
+    raise HTTPException(status_code=401, detail="Unauthorized")
+
+async def _run_legal_question(payload: Question, *, voice: bool = False):
     try:
         if payload.language is not None and payload.language not in ("en", "bn"):
             raise HTTPException(
                 status_code=422,
                 detail="language must be 'en', 'bn', or omitted",
             )
-        answer = answer_with_rag(payload.query, language=payload.language)
+        history = (
+            [{"role": turn.role, "content": turn.content} for turn in payload.history]
+            if payload.history
+            else None
+        )
+        answer = answer_with_rag(
+            payload.query,
+            language=payload.language,
+            history=history,
+            voice=voice,
+        )
         return {"answer": answer}
     except FileNotFoundError as exc:
         logger.exception("/ask missing embeddings: %s", exc)
@@ -93,6 +144,106 @@ async def ask_legal_question(payload: Question):
     except Exception as exc:
         logger.exception("/ask failed: %s", exc)
         raise HTTPException(status_code=500, detail="Failed to generate answer. Check server logs.")
+
+
+@app.post("/ask")
+async def ask_legal_question(payload: Question):
+    """Detailed text answer. The voice flag is not part of this request."""
+    return await _run_legal_question(payload, voice=False)
+
+
+@app.post("/voice/ask")
+async def voice_ask(
+    payload: VoiceQuestion,
+    authorization: str | None = Header(default=None),
+    x_verdictai_webhook_secret: str | None = Header(default=None),
+):
+    """ElevenLabs webhook tool. The JSON body is the tool's request body schema.
+
+    Authentication is the shared secret in X-VerdictAI-Webhook-Secret, or
+    Authorization: Bearer. Legal reasoning matches POST /ask. The spoken
+    answer is a shorter summary, so the full text is not sent to speech.
+    """
+    _require_elevenlabs_webhook(authorization, x_verdictai_webhook_secret)
+    query = payload.query.strip()
+    if not query:
+        raise HTTPException(status_code=422, detail="query must not be empty")
+    if payload.language not in ("en", "bn"):
+        raise HTTPException(status_code=422, detail="language must be 'en' or 'bn'")
+    return await _run_legal_question(
+        Question(query=query, language=payload.language),
+        voice=True,
+    )
+
+
+def _elevenlabs_quota_exhausted(api_key: str) -> bool:
+    """True when the ElevenLabs character quota is already spent."""
+    request = urllib.request.Request(
+        "https://api.elevenlabs.io/v1/user/subscription",
+        headers={"xi-api-key": api_key},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        return False
+    if not isinstance(payload, dict):
+        return False
+    used = payload.get("character_count")
+    limit = payload.get("character_limit")
+    return isinstance(used, int) and isinstance(limit, int) and limit > 0 and used >= limit
+
+
+def _elevenlabs_conversation_token(agent_id: str, api_key: str) -> str:
+    """Mint a WebRTC token. The ElevenLabs API key stays on the server."""
+    query = urllib.parse.urlencode({"agent_id": agent_id})
+    url = f"https://api.elevenlabs.io/v1/convai/conversation/token?{query}"
+    request = urllib.request.Request(url, headers={"xi-api-key": api_key})
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        logger.error("ElevenLabs conversation token failed: %s", exc.code)
+        elevenlabs_status = ""
+        try:
+            payload = json.loads(exc.read().decode("utf-8"))
+            detail_body = payload.get("detail") if isinstance(payload, dict) else None
+            if isinstance(detail_body, dict):
+                elevenlabs_status = str(detail_body.get("status") or "")
+        except (json.JSONDecodeError, UnicodeError):
+            elevenlabs_status = ""
+        if elevenlabs_status == "missing_permissions":
+            detail = "The ElevenLabs API key is missing the convai_write permission."
+        elif exc.code == 401:
+            detail = "ElevenLabs rejected the API key."
+        else:
+            detail = "Could not start a voice session."
+        raise HTTPException(status_code=502, detail=detail) from exc
+    except Exception as exc:
+        logger.error("ElevenLabs conversation token failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=502, detail="Could not start a voice session.") from exc
+    token = payload.get("token") if isinstance(payload, dict) else None
+    if not isinstance(token, str) or not token:
+        logger.error("ElevenLabs conversation token missing")
+        raise HTTPException(status_code=502, detail="Could not start a voice session.")
+    return token
+
+
+@app.get("/voice/session")
+async def voice_session():
+    """Client session for the voice button. Never returns the API key or webhook secret."""
+    agent_id = os.getenv("ELEVENLABS_AGENT_ID", "").strip()
+    api_key = os.getenv("ELEVENLABS_API_KEY", "").strip()
+    if not agent_id:
+        raise HTTPException(status_code=503, detail="Voice agent is not configured.")
+    if not api_key:
+        return {"agentId": agent_id}
+    if _elevenlabs_quota_exhausted(api_key):
+        raise HTTPException(
+            status_code=503,
+            detail="ElevenLabs voice credits are used up. Add credits or wait for the quota to reset.",
+        )
+    return {"conversationToken": _elevenlabs_conversation_token(agent_id, api_key)}
 
 def _analysis_auth_dependency():
     """Phase 1 does not check a token. Swap this dependency for verify_token later."""

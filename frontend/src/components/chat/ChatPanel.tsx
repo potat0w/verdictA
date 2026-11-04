@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUp, Menu, Moon, Plus, Scale, Sun, X } from "lucide-react";
+import VoiceAskButton from "./VoiceAskButton";
 import { askLegalQuestion } from "@/lib/api";
 import {
   ChatSession,
@@ -173,6 +174,29 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
     setSidebarOpen(false);
   };
 
+  const recordVoiceLine = useCallback(
+    (id: string, role: "user" | "assistant", text: string) => {
+      if (!activeSessionId) {
+        const sessionId = createSessionId();
+        setActiveSessionIdState(sessionId);
+        setActiveSessionId(sessionId);
+      }
+      setMessages((prev) => {
+        const index = prev.findIndex((message) => message.id === id);
+        if (index >= 0) {
+          return prev.map((message) =>
+            message.id === id ? { ...message, content: text } : message
+          );
+        }
+        return [
+          ...prev,
+          { id, content: text, role, timestamp: new Date() },
+        ];
+      });
+    },
+    [activeSessionId]
+  );
+
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
 
@@ -200,7 +224,14 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
     const assistantId = (Date.now() + 1).toString();
 
     try {
-      const data = await askLegalQuestion(text.trim(), language);
+      const history = messages
+        .filter((message) => message.content.trim())
+        .slice(-6)
+        .map((message) => ({
+          role: message.role,
+          content: message.content.slice(0, 1000),
+        }));
+      const data = await askLegalQuestion(text.trim(), language, history);
       const full = data.answer || "";
 
       setIsLoading(false);
@@ -467,6 +498,11 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
                   }
                   rows={1}
                   aria-label="Your question"
+                />
+                <VoiceAskButton
+                  language={language}
+                  disabled={isLoading || !!streamingId}
+                  onTranscript={recordVoiceLine}
                 />
                 <button
                   className="send-button"

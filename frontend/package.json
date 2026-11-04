@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@elevenlabs/react": "^1.20.3",
     "clsx": "^2.0.0",
     "gsap": "^3.15.0",
     "lucide-react": "^0.539.0",

@@ -17,6 +17,14 @@ BM25_K1 = 1.2
 BM25_B = 0.75
 
 _TOKEN = re.compile(r"[A-Za-z0-9]+|[\u0980-\u09FF]+")
+# Frequent Bangla function words. They match almost every article and hide the real issue.
+_BN_FUNCTION = {
+    "এবং", "বা", "না", "কি", "কী", "এই", "সে", "তার", "জন্য", "করা", "করে",
+    "করেছে", "হয়েছে", "হয়েছে", "কাউকে", "কিন্তু", "থেকে", "কোন", "কোনো",
+    "একটি", "একই", "সেই", "আর", "কেন", "পারে", "ক্ষেত্রে", "দিনে", "হলে",
+    "যদি", "যে", "যা", "তা", "এটি", "তাদের", "চাইতে", "খাটে", "নিয়ম",
+    "ছাড়া", "ছাড়াই", "মধ্যে", "পর", "আগে",
+}
 _CITATION = re.compile(
     r"(?:article|art\.?|section|sec\.?|অনুচ্ছেদ|ধারা)\s*([0-9০-৯]+[A-Za-zক-হ]?)",
     re.IGNORECASE,
@@ -27,8 +35,29 @@ def normalize_query(text: str) -> str:
     return unicodedata.normalize("NFC", text or "")
 
 
+def _fold_english(token: str) -> str:
+    """Join threatening with threatens, without changing Bangla tokens."""
+    if any("\u0980" <= char <= "\u09ff" for char in token):
+        return token
+    if len(token) > 5 and token.endswith("ies"):
+        return token[:-3] + "y"
+    if len(token) > 7 and token.endswith("ing"):
+        return token[:-3]
+    if len(token) > 6 and token.endswith("ed"):
+        return token[:-2]
+    if len(token) > 5 and token.endswith("s") and not token.endswith("ss"):
+        return token[:-1]
+    return token
+
+
 def tokenize(text: str) -> list[str]:
-    return [token.lower() for token in _TOKEN.findall(normalize_query(text))]
+    folded = []
+    for token in _TOKEN.findall(normalize_query(text)):
+        word = _fold_english(token.lower())
+        if word in _BN_FUNCTION:
+            continue
+        folded.append(word)
+    return folded
 
 
 def cited_keys(query: str) -> list[str]:

@@ -6,10 +6,9 @@ function escapeHtml(text: string) {
 }
 
 function formatInline(text: string) {
-  return escapeHtml(text).replace(
-    /\*\*(.+?)\*\*/g,
-    "<strong>$1</strong>"
-  );
+  return escapeHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="msg-bold">$1</strong>')
+    .replace(/__(.+?)__/g, '<span class="msg-semibold">$1</span>');
 }
 
 function splitCells(line: string) {
