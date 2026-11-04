@@ -177,7 +177,7 @@ video {
       rgba(35, 35, 31, 0.45) 42%,
       rgba(35, 35, 31, 0.1) 100%
     ),
-    url("/verdict-hero.png");
+    url("/hero.jpeg");
   background-position: center;
   background-size: cover;
   filter: saturate(0.58);
