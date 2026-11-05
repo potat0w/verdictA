@@ -2,7 +2,12 @@
 
 import pytest
 
-from embedding_provider import EmbeddingError, embed_texts, parse_embeddings
+from embedding_provider import (
+    EmbeddingError,
+    embed_texts,
+    parse_embeddings,
+    provider_name,
+)
 
 
 def test_tei_posts_one_batch(monkeypatch):
@@ -60,6 +65,36 @@ def test_a_different_model_is_refused(monkeypatch):
     monkeypatch.setattr("embedding_provider._post_json", fail)
     with pytest.raises(EmbeddingError, match="Refusing to embed"):
         embed_texts(["arrest rights"], provider="tei")
+
+
+def test_render_skips_a_localhost_tei_server(monkeypatch):
+    monkeypatch.setenv("RENDER", "true")
+    monkeypatch.setenv("EMBEDDING_PROVIDER", "tei")
+    monkeypatch.setenv("TEI_BASE_URL", "http://localhost:8080")
+    assert provider_name() == "fastembed"
+
+
+def test_render_keeps_a_reachable_tei_server(monkeypatch):
+    monkeypatch.setenv("RENDER", "true")
+    monkeypatch.setenv("EMBEDDING_PROVIDER", "tei")
+    monkeypatch.setenv("TEI_BASE_URL", "https://embeddings.example.com")
+    assert provider_name() == "tei"
+
+
+def test_fastembed_does_not_call_http(monkeypatch):
+    class FakeModel:
+        def embed(self, texts):
+            for _text in texts:
+                yield [0.3] * 384
+
+    monkeypatch.setattr("embedding_provider._local_model", FakeModel())
+
+    def fail(url, body, headers):
+        raise AssertionError("fastembed must not call the embedding server")
+
+    monkeypatch.setattr("embedding_provider._post_json", fail)
+    vector = embed_texts(["arrest rights"], provider="fastembed")[0]
+    assert len(vector) == 384
 
 
 def test_parse_accepts_a_single_flat_vector():

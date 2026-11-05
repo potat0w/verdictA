@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from rag_utils import answer_with_rag
 import rag_utils
+from embedding_provider import EmbeddingError
 from document_parser import (
     parse_document,
     UnsupportedFileType,
@@ -45,7 +46,38 @@ async def lifespan(_app: FastAPI):
         logger.info("Database tables ensured.")
     except Exception as exc:
         logger.exception("Failed to initialize database: %s", exc)
+    _preload_embeddings()
     yield
+
+
+def _preload_embeddings() -> None:
+    try:
+        from embedding_provider import preload_local_model
+
+        preload_local_model()
+    except Exception as exc:
+        logger.exception("Local embedding model did not load at startup: %s", exc)
+
+
+def _configured_provider() -> str:
+    try:
+        from embedding_provider import provider_name
+
+        return provider_name()
+    except Exception:
+        return os.getenv("EMBEDDING_PROVIDER", "tei").strip() or "tei"
+
+
+def _configured_model() -> str:
+    try:
+        from embedding_provider import model_name
+
+        return model_name()
+    except Exception:
+        return os.getenv(
+            "EMBEDDING_MODEL",
+            "sentence-transformers/all-MiniLM-L6-v2",
+        ).strip()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -136,6 +168,12 @@ async def _run_legal_question(payload: Question, *, voice: bool = False):
             raise HTTPException(status_code=503, detail="Groq API is not configured on server.")
         logger.exception("/ask value error: %s", exc)
         raise HTTPException(status_code=500, detail="Failed to generate answer.")
+    except EmbeddingError:
+        logger.exception("/ask embedding failed")
+        raise HTTPException(
+            status_code=503,
+            detail="The embedding service is unavailable.",
+        )
     except RuntimeError as exc:
         message = str(exc)
         if "GROQ_API_KEY" in message or "GROQ_MODEL_NAME" in message:
@@ -295,6 +333,12 @@ async def analyze_uploaded_document(
             )
         logger.error("/analyze failed: %s", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Failed to analyze document.")
+    except EmbeddingError:
+        logger.exception("/analyze embedding failed")
+        raise HTTPException(
+            status_code=503,
+            detail="The embedding service is unavailable.",
+        )
     except RuntimeError as exc:
         message = str(exc)
         if "GROQ_API_KEY" in message or "GROQ_MODEL_NAME" in message:
@@ -329,11 +373,8 @@ async def health():
         "groq_key_configured": bool(os.getenv("GROQ_API_KEY")),
         "groq_model_configured": bool(os.getenv("GROQ_MODEL_NAME")),
         "qdrant_configured": bool(os.getenv("QDRANT_URL", "").strip()),
-        "embedding_provider": os.getenv("EMBEDDING_PROVIDER", "tei").strip() or "tei",
-        "embedding_model": os.getenv(
-            "EMBEDDING_MODEL",
-            "sentence-transformers/all-MiniLM-L6-v2",
-        ).strip(),
+        "embedding_provider": _configured_provider(),
+        "embedding_model": _configured_model(),
         "jina_key_configured": bool(os.getenv("JINA_API_KEY", "").strip()),
     }
 

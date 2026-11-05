@@ -1,16 +1,19 @@
 """Query and document embeddings.
 
-Local indexing calls the Text Embeddings Inference server. Production queries
-can call the Hugging Face Inference API instead. Both must use the same model
-and the same width as the Qdrant collection. This module does not load the
-model in-process, and it does not write to Qdrant.
+Local indexing calls the Text Embeddings Inference server. Queries use that
+server, the same MiniLM model inside this process, or the Hugging Face
+Inference API. The model and width must match the Qdrant collection.
+This module does not write to Qdrant.
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
+from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -38,15 +41,41 @@ def _pause(seconds: float) -> None:
     time.sleep(seconds)
 
 
+def _tei_host_is_local() -> bool:
+    base = os.getenv("TEI_BASE_URL", "http://localhost:8080").strip()
+    host = (urlparse(base).hostname or "").lower()
+    return host in {"localhost", "127.0.0.1", "::1"}
+
+
 def provider_name() -> str:
-    """tei unless EMBEDDING_PROVIDER is huggingface. An unknown value is an error."""
+    """The embedding host for this process.
+
+    A machine with Docker sets EMBEDDING_PROVIDER=tei. Render cannot reach a
+    localhost TEI server, so it uses the same MiniLM model inside this process.
+    A public TEI_BASE_URL on Render stays on tei.
+    """
     _load_env()
-    raw = os.getenv("EMBEDDING_PROVIDER", "tei").strip().lower()
+    raw = os.getenv("EMBEDDING_PROVIDER", "").strip().lower()
+    if not raw:
+        raw = "fastembed" if os.getenv("RENDER", "").strip() else "tei"
     if raw == "hf":
         return "huggingface"
-    if raw in ("tei", "huggingface"):
+    if raw == "local":
+        return "fastembed"
+    if (
+        raw == "tei"
+        and os.getenv("RENDER", "").strip()
+        and _tei_host_is_local()
+    ):
+        logging.warning(
+            "TEI_BASE_URL is local, so Render uses the in-process MiniLM model"
+        )
+        return "fastembed"
+    if raw in ("tei", "fastembed", "huggingface"):
         return raw
-    raise EmbeddingError("EMBEDDING_PROVIDER must be 'tei' or 'huggingface'")
+    raise EmbeddingError(
+        "EMBEDDING_PROVIDER must be 'tei', 'fastembed', or 'huggingface'"
+    )
 
 
 def model_name() -> str:
@@ -220,8 +249,42 @@ def parse_embeddings(payload: object, count: int, width: int) -> list[list[float
     return [_vector(row, width) for row in payload]
 
 
+_local_model: Any = None
+_local_lock = threading.Lock()
+
+
+def _local_vectors(texts: list[str]) -> list[list[float]]:
+    """Same MiniLM weights as the TEI index, computed in this process."""
+    global _local_model
+    model, width = require_stored_configuration()
+    with _local_lock:
+        if _local_model is None:
+            from fastembed import TextEmbedding
+
+            logging.info("Loading local embedding model %s", model)
+            _local_model = TextEmbedding(model_name=model)
+        rows = list(_local_model.embed(texts))
+    if len(rows) != len(texts):
+        raise EmbeddingError("Local embedding model returned the wrong number of vectors")
+    return [_vector([float(value) for value in row], width) for row in rows]
+
+
+def preload_local_model() -> None:
+    """Download the local model at startup. TEI and Hugging Face skip this."""
+    if provider_name() != "fastembed":
+        return
+    _local_vectors(["warmup"])
+
+
 def _embed_batch(texts: list[str], provider: str) -> list[list[float]]:
     model, width = require_stored_configuration()
+    if provider == "fastembed":
+        logging.info(
+            "Embedding batch provider=fastembed model=%s texts=%s",
+            model,
+            len(texts),
+        )
+        return _local_vectors(texts)
     if provider == "tei":
         url = tei_embed_url()
         headers = {"Content-Type": "application/json"}
@@ -234,7 +297,9 @@ def _embed_batch(texts: list[str], provider: str) -> list[list[float]]:
         }
         body = {"inputs": texts, "truncate": True, "normalize": True}
     else:
-        raise EmbeddingError("EMBEDDING_PROVIDER must be 'tei' or 'huggingface'")
+        raise EmbeddingError(
+            "EMBEDDING_PROVIDER must be 'tei', 'fastembed', or 'huggingface'"
+        )
     logging.info(
         "Embedding batch provider=%s model=%s texts=%s",
         provider,
@@ -257,8 +322,10 @@ def _embed_batch(texts: list[str], provider: str) -> list[list[float]]:
 def embed_texts(texts: list[str], provider: str | None = None) -> list[list[float]]:
     """Embed a batch. provider overrides EMBEDDING_PROVIDER for this call only."""
     selected = provider or provider_name()
-    if selected not in ("tei", "huggingface"):
-        raise EmbeddingError("EMBEDDING_PROVIDER must be 'tei' or 'huggingface'")
+    if selected not in ("tei", "fastembed", "huggingface"):
+        raise EmbeddingError(
+            "EMBEDDING_PROVIDER must be 'tei', 'fastembed', or 'huggingface'"
+        )
     if not texts or any(not isinstance(text, str) or not text.strip() for text in texts):
         raise EmbeddingError("Embeddings require non-empty text")
     vectors: list[list[float]] = []
