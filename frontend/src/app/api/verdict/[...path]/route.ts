@@ -87,6 +87,9 @@ async function forward(request: NextRequest, path: string[]) {
   upstream.headers.forEach((value, key) => {
     if (!HOP_BY_HOP.has(key.toLowerCase())) responseHeaders.set(key, value);
   });
+  // fetch() has already decoded the body. Forwarding content-encoding makes the
+  // browser decode that plain JSON again, which is ERR_CONTENT_DECODING_FAILED.
+  responseHeaders.delete("content-encoding");
 
   const payload = await upstream.arrayBuffer();
   if (
