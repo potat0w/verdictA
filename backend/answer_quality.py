@@ -6,6 +6,7 @@ This module does not call a model and does not retrieve.
 
 from __future__ import annotations
 
+import os
 import re
 
 from article_parser import normalize_bn_article_token
@@ -169,23 +170,81 @@ def _has_any(text: str, words: tuple[str, ...]) -> bool:
     return any(word in lowered for word in words)
 
 
-def select_relevant_chunks(query: str, ranked: list[dict], limit: int = 5) -> list[dict]:
-    """Keep passages that share the question's words, or that the user named.
+# How many passages an answer keeps after hybrid search. ANSWER_CONTEXT_LIMIT
+# overrides this and is clamped to the range below.
+DEFAULT_CONTEXT_LIMIT = 8
+CONTEXT_LIMIT_MIN = 1
+CONTEXT_LIMIT_MAX = 12
+# Two chunks of one article can both be kept only when each passes on its own.
+ARTICLE_CHUNK_CAP = 2
+# Semantic admission looks at the nearest Qdrant neighbors. The list is treated
+# as peaked only when the top score clears the fifth score by SEMANTIC_LIST_SPREAD.
+# A neighbor is then kept only when it clears that same fifth score by
+# SEMANTIC_HIT_MARGIN. Checked on the six evaluation queries: English arrest and
+# property gaps are 0.192 and 0.149; English movement is 0.041; the three Bengali
+# gaps are 0.012, 0.023, and 0.033. The irrelevant neighbor behind a real top hit
+# sits 0.053 to 0.067 above the fifth score, so the hit margin is wider than that.
+SEMANTIC_TOP_HITS = 3
+SEMANTIC_REFERENCE_RANK = 5
+SEMANTIC_LIST_SPREAD = 0.08
+SEMANTIC_HIT_MARGIN = 0.09
 
-    Retrieval rank is not legal relevance. The first hit is dropped when its
-    text does not address the question.
+
+def context_limit() -> int:
+    """Passage cap for one answer. Invalid values use the default."""
+    raw = os.getenv("ANSWER_CONTEXT_LIMIT", "").strip()
+    if not raw:
+        return DEFAULT_CONTEXT_LIMIT
+    try:
+        value = int(raw)
+    except ValueError:
+        return DEFAULT_CONTEXT_LIMIT
+    return min(CONTEXT_LIMIT_MAX, max(CONTEXT_LIMIT_MIN, value))
+
+
+def semantic_admit_ids(scored: list[tuple[int, float]]) -> set[int]:
+    """Point ids a peaked semantic list may keep without a shared keyword.
+
+    scored is best-first. A flat list admits nothing. Keyword matches are decided
+    separately and do not depend on this set.
+    """
+    if len(scored) < SEMANTIC_REFERENCE_RANK:
+        return set()
+    reference = scored[SEMANTIC_REFERENCE_RANK - 1][1]
+    if scored[0][1] - reference < SEMANTIC_LIST_SPREAD:
+        return set()
+    return {
+        row_id
+        for row_id, score in scored[:SEMANTIC_TOP_HITS]
+        if score - reference >= SEMANTIC_HIT_MARGIN
+    }
+
+
+def select_relevant_chunks(
+    query: str,
+    ranked: list[dict],
+    limit: int | None = None,
+) -> list[dict]:
+    """Keep named, keyword-matching, or peaked semantic passages.
+
+    Keyword and citation matches are unchanged. semantic_admit supplements them
+    for a passage the score gate already accepted. Chunks are not added because
+    another chunk of the same article was accepted.
     """
     from hybrid_search import cited_keys
 
+    if limit is None:
+        limit = context_limit()
     wanted = _specific_tokens(query)
     cited = set(cited_keys(query))
     chosen: list[dict] = []
-    seen: set[str] = set()
+    seen_chunks: set[str] = set()
+    per_article: dict[str, int] = {}
     for index, chunk in enumerate(ranked):
         if is_definition_dump(chunk, query) or _pending_proceeding(chunk, query):
             continue
-        key = str(chunk.get("article_key") or chunk.get("chunk_id") or index)
-        if key in seen:
+        chunk_id = str(chunk.get("chunk_id") or "")
+        if chunk_id and chunk_id in seen_chunks:
             continue
         article_key = (
             normalize_bn_article_token(str(chunk.get("article_key")))
@@ -195,10 +254,15 @@ def select_relevant_chunks(query: str, ranked: list[dict], limit: int = 5) -> li
         section_key = statute_section_key(chunk) or ""
         named = (article_key and article_key in cited) or (section_key and section_key in cited)
         overlap = wanted & _specific_tokens(chunk.get("content") or "")
-        if not named and not overlap:
+        if not named and not overlap and not chunk.get("semantic_admit"):
+            continue
+        if article_key and per_article.get(article_key, 0) >= ARTICLE_CHUNK_CAP:
             continue
         chosen.append(chunk)
-        seen.add(key)
+        if chunk_id:
+            seen_chunks.add(chunk_id)
+        if article_key:
+            per_article[article_key] = per_article.get(article_key, 0) + 1
         if len(chosen) >= limit:
             break
     return chosen

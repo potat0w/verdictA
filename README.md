@@ -9,7 +9,7 @@ This is legal information, not legal advice.
 - Frontend: Next.js 16, React 19, TypeScript
 - Backend: FastAPI
 - Answers: Groq
-- Retrieval: FAISS plus keyword search over the constitution and other stored Acts
+- Retrieval: Qdrant cosine search plus keyword search over the constitution and other stored Acts
 - Voice: ElevenLabs. The API key stays on the server.
 
 ## Requirements
@@ -46,13 +46,13 @@ GROQ_MODEL_NAME=
 
 `.env.example` lists the voice settings. `ELEVENLABS_WEBHOOK_SECRET` is the shared secret for `POST /voice/ask`. `ELEVENLABS_API_KEY` and `ELEVENLABS_AGENT_ID` are used only to start a voice session. `VOICE_ANSWER_TOKEN_BUDGET` caps the spoken answer. The default is 180, about 720 characters. Text answers use a separate, larger budget.
 
-The search index lives in `backend/embeddings/` (`faiss.index`, `chunk_metadata.pkl`, and `index_meta.json`). Rebuild it only when the source law changes:
+The API reads vectors and passage text from Qdrant. It does not load `faiss.index` or `chunk_metadata.pkl`. Query embeddings come from the provider in `EMBEDDING_PROVIDER` (`tei` or `huggingface`) using `sentence-transformers/all-MiniLM-L6-v2` at 384 dimensions. The Qdrant collection `verdictai` stores cosine vectors from that same model. Rebuild only when the source law changes, with the local Text Embeddings Inference server running at `TEI_BASE_URL`:
 
 ```bash
 python build_index.py
 ```
 
-That reads `backend/processed_law.json`.
+That reads `backend/processed_law.json`, embeds it through `TEI_BASE_URL/embed`, and uploads a fresh cosine collection. It does not reuse `faiss.index`. Production queries set `EMBEDDING_PROVIDER=huggingface` and `HF_API_TOKEN`. The model and dimension stay the same.
 
 ### Frontend
 
@@ -76,6 +76,14 @@ From `backend/`, with the virtualenv active:
 ```bash
 uvicorn app:app --host 127.0.0.1 --port 8000
 ```
+
+On Render, set the root directory to `backend` and the start command to:
+
+```bash
+uvicorn app:app --host 0.0.0.0 --port $PORT
+```
+
+`127.0.0.1` and a fixed port `8000` are not reachable there. Render injects `PORT`. Set `GROQ_API_KEY`, `GROQ_MODEL_NAME`, `QDRANT_URL`, `QDRANT_API_KEY`, and `JWT_SECRET` in the Render environment. Voice also needs `ELEVENLABS_WEBHOOK_SECRET`, `ELEVENLABS_AGENT_ID`, and `ELEVENLABS_API_KEY`.
 
 From `frontend/`:
 

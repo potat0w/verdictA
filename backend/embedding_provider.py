@@ -1,0 +1,275 @@
+"""Query and document embeddings.
+
+Local indexing calls the Text Embeddings Inference server. Production queries
+can call the Hugging Face Inference API instead. Both must use the same model
+and the same width as the Qdrant collection. This module does not load the
+model in-process, and it does not write to Qdrant.
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import time
+
+import httpx
+
+STORED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+STORED_DIMENSION = 384
+STORED_DISTANCE = "Cosine"
+TEI_MAX_BATCH = 32
+MAX_ATTEMPTS = 5
+MAX_RETRY_WAIT_SECONDS = 8.0
+
+_http: httpx.Client | None = None
+
+
+class EmbeddingError(RuntimeError):
+    """The selected embedding provider failed. Callers must not switch providers."""
+
+
+def _load_env() -> None:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+
+def _pause(seconds: float) -> None:
+    time.sleep(seconds)
+
+
+def provider_name() -> str:
+    """tei unless EMBEDDING_PROVIDER is huggingface. An unknown value is an error."""
+    _load_env()
+    raw = os.getenv("EMBEDDING_PROVIDER", "tei").strip().lower()
+    if raw == "hf":
+        return "huggingface"
+    if raw in ("tei", "huggingface"):
+        return raw
+    raise EmbeddingError("EMBEDDING_PROVIDER must be 'tei' or 'huggingface'")
+
+
+def model_name() -> str:
+    _load_env()
+    model = os.getenv("EMBEDDING_MODEL", STORED_MODEL).strip()
+    if not model:
+        raise EmbeddingError("EMBEDDING_MODEL is empty")
+    return model
+
+
+def dimension() -> int:
+    _load_env()
+    raw = os.getenv("EMBEDDING_DIMENSION", str(STORED_DIMENSION)).strip()
+    try:
+        width = int(raw)
+    except ValueError as exc:
+        raise EmbeddingError("EMBEDDING_DIMENSION must be an integer") from exc
+    if width <= 0:
+        raise EmbeddingError("EMBEDDING_DIMENSION must be greater than zero")
+    return width
+
+
+def require_stored_configuration() -> tuple[str, int]:
+    """Refuse a model or width that is not the one stored in Qdrant."""
+    model = model_name()
+    width = dimension()
+    if model != STORED_MODEL or width != STORED_DIMENSION:
+        raise EmbeddingError(
+            f"Refusing to embed with {model} at {width} dimensions. "
+            f"The collection stores {STORED_MODEL} at {STORED_DIMENSION} dimensions "
+            f"with {STORED_DISTANCE} distance. Re-index into a new collection before "
+            "changing the model or dimension."
+        )
+    return model, width
+
+
+def tei_embed_url() -> str:
+    _load_env()
+    base = os.getenv("TEI_BASE_URL", "http://localhost:8080").strip().rstrip("/")
+    if not base:
+        raise EmbeddingError("TEI_BASE_URL is empty")
+    if base.endswith("/embed"):
+        return base
+    return f"{base}/embed"
+
+
+def _hf_token() -> str:
+    _load_env()
+    token = os.getenv("HF_API_TOKEN", "").strip() or os.getenv("HF_TOKEN", "").strip()
+    if not token:
+        raise EmbeddingError("HF_API_TOKEN is not set")
+    return token
+
+
+def huggingface_embed_url() -> str:
+    _load_env()
+    base = os.getenv(
+        "HF_INFERENCE_URL",
+        "https://router.huggingface.co/hf-inference",
+    ).strip().rstrip("/")
+    if not base:
+        raise EmbeddingError("HF_INFERENCE_URL is empty")
+    return f"{base}/models/{model_name()}/pipeline/feature-extraction"
+
+
+def _redact(text: str) -> str:
+    for name in ("HF_API_TOKEN", "HF_TOKEN"):
+        token = os.getenv(name, "").strip()
+        if token and token in text:
+            text = text.replace(token, "[redacted]")
+    return text[:300]
+
+
+def _http_client() -> httpx.Client:
+    global _http
+    if _http is None:
+        timeout = httpx.Timeout(120.0, connect=10.0)
+        _http = httpx.Client(timeout=timeout)
+    return _http
+
+
+def _retry_delay(response: httpx.Response | None, attempt: int) -> float:
+    if response is not None:
+        raw = response.headers.get("retry-after")
+        if raw:
+            try:
+                delay = float(raw)
+            except ValueError:
+                delay = 0.0
+            if 0 <= delay <= MAX_RETRY_WAIT_SECONDS:
+                return delay
+    return min(0.5 * (2**attempt), MAX_RETRY_WAIT_SECONDS)
+
+
+def _post_json(url: str, body: dict, headers: dict) -> object:
+    last_status = None
+    for attempt in range(MAX_ATTEMPTS):
+        response = None
+        try:
+            response = _http_client().post(url, json=body, headers=headers)
+            last_status = response.status_code
+            if response.status_code == 200:
+                return response.json()
+            retry = response.status_code in (429, 500, 502, 503, 504)
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            retry = True
+            logging.warning(
+                "Embedding request failed attempt=%s error=%s",
+                attempt + 1,
+                type(exc).__name__,
+            )
+        if retry and attempt + 1 < MAX_ATTEMPTS:
+            delay = _retry_delay(response, attempt)
+            logging.warning(
+                "Embedding retry attempt=%s status=%s wait=%.1fs texts=%s",
+                attempt + 1,
+                last_status,
+                delay,
+                len(body.get("inputs") or []),
+            )
+            _pause(delay)
+            continue
+        detail = ""
+        if response is not None:
+            detail = _redact(response.text)
+        raise EmbeddingError(
+            f"Embedding request failed status={last_status} detail={detail}"
+        )
+    raise EmbeddingError("Embedding request failed")
+
+
+def _vector(raw: object, width: int) -> list[float]:
+    if not isinstance(raw, list) or not raw or isinstance(raw[0], list):
+        raise EmbeddingError(
+            f"Expected a {width}-dimensional embedding, received a nested or empty value"
+        )
+    vector: list[float] = []
+    for value in raw:
+        try:
+            number = float(value)
+        except (TypeError, ValueError) as exc:
+            raise EmbeddingError("Embedding contained a non-numeric value") from exc
+        if number != number or number in (float("inf"), float("-inf")):
+            raise EmbeddingError("Embedding contained a non-finite value")
+        vector.append(number)
+    if len(vector) != width:
+        raise EmbeddingError(
+            f"Expected {width} dimensions, received {len(vector)}"
+        )
+    return vector
+
+
+def parse_embeddings(payload: object, count: int, width: int) -> list[list[float]]:
+    """Accept the TEI list body and the Hugging Face feature-extraction body."""
+    if isinstance(payload, dict):
+        nested = payload.get("embeddings")
+        if nested is None and isinstance(payload.get("data"), list):
+            nested = [
+                row.get("embedding") if isinstance(row, dict) else row
+                for row in payload["data"]
+            ]
+        payload = nested
+    if not isinstance(payload, list):
+        raise EmbeddingError("Embedding service returned an unexpected response")
+    if count == 1 and payload and not isinstance(payload[0], list):
+        return [_vector(payload, width)]
+    if len(payload) != count:
+        raise EmbeddingError(
+            f"Embedding service returned {len(payload)} vectors for {count} texts"
+        )
+    return [_vector(row, width) for row in payload]
+
+
+def _embed_batch(texts: list[str], provider: str) -> list[list[float]]:
+    model, width = require_stored_configuration()
+    if provider == "tei":
+        url = tei_embed_url()
+        headers = {"Content-Type": "application/json"}
+        body = {"inputs": texts, "truncate": True}
+    elif provider == "huggingface":
+        url = huggingface_embed_url()
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {_hf_token()}",
+        }
+        body = {"inputs": texts, "truncate": True, "normalize": True}
+    else:
+        raise EmbeddingError("EMBEDDING_PROVIDER must be 'tei' or 'huggingface'")
+    logging.info(
+        "Embedding batch provider=%s model=%s texts=%s",
+        provider,
+        model,
+        len(texts),
+    )
+    try:
+        payload = _post_json(url, body, headers)
+    except EmbeddingError as exc:
+        message = str(exc)
+        rejected = any(token in message for token in ("status=400", "status=413", "status=422"))
+        if rejected and len(texts) > 1:
+            middle = len(texts) // 2
+            logging.warning("Splitting embedding batch of %s after the server rejected it", len(texts))
+            return _embed_batch(texts[:middle], provider) + _embed_batch(texts[middle:], provider)
+        raise
+    return parse_embeddings(payload, len(texts), width)
+
+
+def embed_texts(texts: list[str], provider: str | None = None) -> list[list[float]]:
+    """Embed a batch. provider overrides EMBEDDING_PROVIDER for this call only."""
+    selected = provider or provider_name()
+    if selected not in ("tei", "huggingface"):
+        raise EmbeddingError("EMBEDDING_PROVIDER must be 'tei' or 'huggingface'")
+    if not texts or any(not isinstance(text, str) or not text.strip() for text in texts):
+        raise EmbeddingError("Embeddings require non-empty text")
+    vectors: list[list[float]] = []
+    step = TEI_MAX_BATCH if selected == "tei" else TEI_MAX_BATCH
+    for start in range(0, len(texts), step):
+        vectors.extend(_embed_batch(texts[start : start + step], selected))
+    return vectors
+
+
+def embed_query(text: str) -> list[float]:
+    """One query vector from the configured provider. This does not query Qdrant."""
+    if not isinstance(text, str) or not text.strip():
+        raise EmbeddingError("Query text is empty")
+    return embed_texts([text])[0]

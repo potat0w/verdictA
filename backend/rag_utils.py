@@ -5,7 +5,7 @@ import threading
 import time
 from typing import List, Dict, Optional
 from legal_status import attach_legal_status_flags
-from hybrid_search import BM25Index, bm25_document, fuse_hits, partition_ids
+from hybrid_search import BM25Index, bm25_document, fuse_hits
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 EMBED_DIR = os.path.join(BASE_DIR, "embeddings")
@@ -18,8 +18,8 @@ SEMANTIC_CANDIDATES = 20
 LEXICAL_CANDIDATES = 20
 
 _embed_model = None
-_index = None
-_metadata: List[Dict] | None = None
+_remote_chunks = False
+_partition_cache: dict[str, list[tuple[int, dict]]] = {}
 _models_initialized = False
 _init_start_time = None
 _index_meta = {
@@ -33,20 +33,38 @@ _init_lock = threading.Lock()
 
 def _load_index_meta() -> None:
     global _index_meta, EMBED_MODEL_NAME
+    from embedding_provider import STORED_DIMENSION, STORED_DISTANCE, STORED_MODEL
+
+    EMBED_MODEL_NAME = STORED_MODEL
     if not os.path.exists(INDEX_META_PATH):
         return
     with open(INDEX_META_PATH, encoding="utf-8") as handle:
         loaded = json.load(handle)
+    model = loaded.get("model_name") or STORED_MODEL
+    if model != STORED_MODEL:
+        raise RuntimeError(
+            f"{INDEX_META_PATH} names {model}, but retrieval requires {STORED_MODEL}."
+        )
+    dimension = loaded.get("dimension")
+    if dimension is not None and int(dimension) != STORED_DIMENSION:
+        raise RuntimeError(
+            f"{INDEX_META_PATH} records dimension {dimension}, expected {STORED_DIMENSION}."
+        )
+    distance = loaded.get("distance")
+    if distance is not None and str(distance).lower() != STORED_DISTANCE.lower():
+        raise RuntimeError(
+            f"{INDEX_META_PATH} records distance {distance}, expected {STORED_DISTANCE}."
+        )
     _index_meta = {
-        "model_name": loaded.get("model_name") or DEFAULT_EMBED_MODEL,
+        "model_name": model,
         "query_prefix": loaded.get("query_prefix") or "",
         "passage_prefix": loaded.get("passage_prefix") or "",
     }
-    EMBED_MODEL_NAME = _index_meta["model_name"]
+    EMBED_MODEL_NAME = model
 
 
 def _lazy_init_models() -> None:
-    global _embed_model, _index, _metadata, _models_initialized, _init_start_time
+    global _embed_model, _remote_chunks, _models_initialized, _init_start_time
 
     if _models_initialized:
         return
@@ -60,34 +78,20 @@ def _lazy_init_models() -> None:
             logging.info("Starting model initialization...")
 
         try:
-            import pickle
-            import faiss
-            from fastembed import TextEmbedding
+            from embedding_provider import require_stored_configuration
             from groq_client import get_groq_api_key, get_groq_model
+            from qdrant_store import qdrant_configured
 
             _load_index_meta()
-
-            if _index is None:
-                if not os.path.exists(INDEX_PATH):
-                    raise FileNotFoundError(f"FAISS index not found at {INDEX_PATH}")
-                logging.info("Loading FAISS index (memory-mapped)...")
-                _index = faiss.read_index(
-                    INDEX_PATH, faiss.IO_FLAG_MMAP | faiss.IO_FLAG_READ_ONLY
-                )
-                logging.info("FAISS index loaded")
-
-            if _metadata is None:
-                if not os.path.exists(META_PATH):
-                    raise FileNotFoundError(f"Chunk metadata not found at {META_PATH}")
-                logging.info("Loading metadata...")
-                with open(META_PATH, "rb") as handle:
-                    _metadata = pickle.load(handle)
-                logging.info("Metadata loaded (%s chunks)", len(_metadata))
-
-            if _embed_model is None:
-                logging.info("Loading embedding model %s", EMBED_MODEL_NAME)
-                _embed_model = TextEmbedding(model_name=EMBED_MODEL_NAME)
-                logging.info("Embedding model loaded")
+            require_stored_configuration()
+            if not qdrant_configured():
+                raise RuntimeError("QDRANT_URL is not set")
+            # Local faiss.index and chunk_metadata.pkl are not read.
+            # Passage text is requested later for one collection, or for the
+            # point ids a search returns. Query vectors come from the
+            # configured embedding provider, not an in-process model.
+            _remote_chunks = True
+            logging.info("Query embeddings use %s", EMBED_MODEL_NAME)
 
             get_groq_api_key()
             get_groq_model()
@@ -102,32 +106,74 @@ def _lazy_init_models() -> None:
             raise
 
 
-def _bm25_for(cache_key: str, row_ids: list[int]) -> BM25Index:
+def _query_vector(query: str) -> list[float]:
+    from embedding_provider import embed_query
+
+    prefixed = f"{_index_meta.get('query_prefix') or ''}{query}"
+    return embed_query(prefixed)
+
+
+def _constitution_rows(language: str) -> list[tuple[int, dict]]:
+    collection = f"constitution-{language}"
+    cached = _partition_cache.get(collection)
+    if cached is not None:
+        return cached
+    from qdrant_store import iter_payloads
+
+    rows = [
+        (row_id, chunk)
+        for row_id, chunk in iter_payloads(collection)
+        if chunk.get("chunk_type") != "footnote" and chunk.get("content")
+    ]
+    _partition_cache[collection] = rows
+    logging.info("Qdrant constitution partition %s rows=%s", collection, len(rows))
+    return rows
+
+
+def _bm25_pairs(cache_key: str, rows: list[tuple[int, dict]]) -> BM25Index:
     cached = _bm25_cache.get(cache_key)
     if cached is not None:
         return cached
-    index = BM25Index((row_id, bm25_document(_metadata[row_id])) for row_id in row_ids)
+    index = BM25Index((row_id, bm25_document(chunk)) for row_id, chunk in rows)
     _bm25_cache[cache_key] = index
     return index
 
 
-def _semantic_ids(query: str, row_ids: list[int], k: int) -> list[int]:
-    import numpy as np
-    import faiss
+def _retrieve_remote(query: str, top_k: int, language: Optional[str]) -> List[Dict]:
+    """Constitution hybrid search using one Qdrant collection, not the full index."""
+    from answer_quality import semantic_admit_ids
+    from qdrant_store import search_collection_scored
 
-    prefixed = f"{_index_meta.get('query_prefix') or ''}{query}"
-    query_vec = np.array(list(_embed_model.embed([prefixed])), dtype="float32")
-    id_array = np.array(row_ids, dtype="int64")
-    params = faiss.SearchParameters()
-    params.sel = faiss.IDSelectorBatch(id_array)
-    _scores, found = _index.search(query_vec, k, params=params)
-    hits: list[int] = []
-    allowed = set(row_ids)
-    for row_id in found[0].tolist():
-        if row_id < 0 or row_id not in allowed:
+    if language not in ("en", "bn"):
+        return []
+    rows = _constitution_rows(language)
+    if not rows:
+        return []
+    by_id = {row_id: chunk for row_id, chunk in rows}
+    row_ids = [row_id for row_id, _chunk in rows]
+    semantic_k = min(max(top_k * 4, SEMANTIC_CANDIDATES), len(row_ids))
+    lexical_k = min(max(top_k * 4, LEXICAL_CANDIDATES), len(row_ids))
+    collection = f"constitution-{language}"
+    scored = search_collection_scored(_query_vector(query), collection, semantic_k)
+    admit = semantic_admit_ids(scored)
+    semantic = [row_id for row_id, _score in scored]
+    lexical = _bm25_pairs(collection, rows).rank(query, lexical_k)
+    chosen = fuse_hits(query, row_ids, semantic, lexical, by_id, top_k)
+    logging.info(
+        "hybrid retrieve language=%s partition=%s returned=%s",
+        language,
+        len(row_ids),
+        len(chosen),
+    )
+    results = []
+    for row_id in chosen:
+        if row_id not in by_id:
             continue
-        hits.append(int(row_id))
-    return hits
+        chunk = dict(by_id[row_id])
+        if row_id in admit:
+            chunk["semantic_admit"] = True
+        results.append(attach_legal_status_flags(chunk))
+    return results
 
 
 def retrieve_chunks(
@@ -140,27 +186,10 @@ def retrieve_chunks(
     Signature is unchanged. A language value searches that constitution
     collection before any ranking, then fuses cosine and BM25.
     """
-    _lazy_init_models()
     if top_k <= 0 or not (query or "").strip():
         return []
-
-    row_ids = partition_ids(_metadata, language)
-    if not row_ids:
-        return []
-
-    cache_key = language or "all"
-    semantic_k = min(max(top_k * 4, SEMANTIC_CANDIDATES), len(row_ids))
-    lexical_k = min(max(top_k * 4, LEXICAL_CANDIDATES), len(row_ids))
-    semantic = _semantic_ids(query, row_ids, semantic_k)
-    lexical = _bm25_for(cache_key, row_ids).rank(query, lexical_k)
-    chosen = fuse_hits(query, row_ids, semantic, lexical, _metadata, top_k)
-    logging.info(
-        "hybrid retrieve language=%s partition=%s returned=%s",
-        language,
-        len(row_ids),
-        len(chosen),
-    )
-    return [attach_legal_status_flags(_metadata[row_id]) for row_id in chosen]
+    _lazy_init_models()
+    return _retrieve_remote(query, top_k, language)
 
 
 ANSWER_TOKEN_BUDGET = 2200
@@ -180,14 +209,18 @@ def spoken_character_limit(token_budget: int) -> int:
 
 
 def _same_article_parts(chunk: dict) -> list[dict]:
-    """Stored parts of one constitution article, capped so a long article cannot crowd out the others."""
+    """Other stored parts of one article. The answer path does not call this.
+
+    A second chunk is included only when that chunk itself passes selection.
+    """
     key = chunk.get("article_key")
     collection = chunk.get("collection")
-    if not key or not str(collection or "").startswith("constitution") or not _metadata:
+    if not key or not str(collection or "").startswith("constitution"):
         return [chunk]
+    source = [row for _row_id, row in _partition_cache.get(str(collection), [])]
     parts = [
         row
-        for row in _metadata
+        for row in source
         if row.get("collection") == collection and str(row.get("article_key")) == str(key)
     ]
     parts.sort(key=lambda row: row.get("chunk_id") or "")
@@ -206,23 +239,44 @@ def _same_article_parts(chunk: dict) -> list[dict]:
 
 def _statute_chunks(query: str, language: Optional[str]) -> list[dict]:
     """Same-language statute passages that share the question's words."""
+    if language not in ("en", "bn"):
+        return []
+    return _remote_statute_chunks(query, language)
+
+
+def _remote_statute_chunks(query: str, language: str) -> list[dict]:
+    """BM25 over one language of Other Acts. The raw passages are not retained."""
     from answer_quality import (
         prefer_general_statutes,
         select_relevant_chunks,
         statutes_about_the_issue,
     )
+    from qdrant_store import fetch_payloads, iter_payloads
 
-    if language not in ("en", "bn") or not _metadata:
-        return []
-    row_ids = [
-        index
-        for index, chunk in enumerate(_metadata)
-        if chunk.get("collection") == "other-acts" and chunk.get("language") == language
+    cache_key = f"other-acts-{language}"
+    index = _bm25_cache.get(cache_key)
+    if index is None:
+        index = BM25Index()
+        count = 0
+        for row_id, chunk in iter_payloads("other-acts", language=language):
+            if chunk.get("chunk_type") == "footnote":
+                continue
+            if "content" not in chunk:
+                raise FileNotFoundError(
+                    "Qdrant other-acts payloads have no passage text. Run upload_qdrant.py."
+                )
+            index.add(row_id, bm25_document(chunk))
+            count += 1
+        index.finish()
+        _bm25_cache[cache_key] = index
+        logging.info("Qdrant statute BM25 language=%s rows=%s", language, count)
+    ranked_ids = index.rank(query, 40)
+    payloads = fetch_payloads(ranked_ids)
+    ranked = [
+        attach_legal_status_flags(payloads[row_id])
+        for row_id in ranked_ids
+        if row_id in payloads
     ]
-    if not row_ids:
-        return []
-    ranked_ids = _bm25_for(f"other-acts-{language}", row_ids).rank(query, 40)
-    ranked = [attach_legal_status_flags(_metadata[row_id]) for row_id in ranked_ids]
     matched = select_relevant_chunks(query, ranked, limit=12)
     matched = statutes_about_the_issue(query, matched)
     return prefer_general_statutes(query, matched)[:3]
@@ -230,6 +284,7 @@ def _statute_chunks(query: str, language: Optional[str]) -> list[dict]:
 
 def _answer_chunks(query: str, language: Optional[str], history) -> list[dict]:
     from answer_quality import (
+        context_limit,
         on_the_same_issue,
         retrieval_language,
         retrieval_text,
@@ -239,16 +294,15 @@ def _answer_chunks(query: str, language: Optional[str], history) -> list[dict]:
     search_text = retrieval_text(query, history)
     search_language = retrieval_language(query, language)
     ranked = retrieve_chunks(search_text, top_k=20, language=search_language)
-    selected = select_relevant_chunks(search_text, ranked)
+    selected = select_relevant_chunks(search_text, ranked, limit=context_limit())
     constitution: list[dict] = []
     seen: set[str] = set()
     for chunk in selected:
-        for part in _same_article_parts(chunk):
-            identity = str(part.get("chunk_id") or id(part))
-            if identity in seen:
-                continue
-            seen.add(identity)
-            constitution.append(attach_legal_status_flags(part))
+        identity = str(chunk.get("chunk_id") or id(chunk))
+        if identity in seen:
+            continue
+        seen.add(identity)
+        constitution.append(attach_legal_status_flags(chunk))
     statutes = _statute_chunks(query, search_language)
     constitution = on_the_same_issue(search_text, statutes, constitution)
     logging.info(

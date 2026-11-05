@@ -169,6 +169,105 @@ def test_an_unrelated_top_hit_is_not_used():
     assert select_relevant_chunks(query, ranked[:1]) == []
     named = select_relevant_chunks("What does Article 4 say?", ranked)
     assert named[0]["article_key"] == "4"
+    assert named[0]["chunk_id"] == "bd-constitution:en:4:0"
+    assert named[0]["act_title"] == "The Constitution of the People's Republic of Bangladesh"
+
+
+def test_score_gate_uses_the_measured_query_gaps():
+    from answer_quality import semantic_admit_ids
+
+    arrest = semantic_admit_ids(
+        [(1, 0.5828), (2, 0.4902), (3, 0.4573), (4, 0.4008), (5, 0.3907)]
+    )
+    assert arrest == {1, 2}
+    property_rights = semantic_admit_ids(
+        [(10, 0.5258), (11, 0.4301), (12, 0.4063), (13, 0.3923), (14, 0.3768)]
+    )
+    assert property_rights == {10}
+    movement = semantic_admit_ids(
+        [(20, 0.5190), (21, 0.5054), (22, 0.5018), (23, 0.4844), (24, 0.4776)]
+    )
+    assert movement == set()
+    bangla_arrest = semantic_admit_ids(
+        [(30, 0.8772), (31, 0.8771), (32, 0.8706), (33, 0.8681), (34, 0.8653)]
+    )
+    assert bangla_arrest == set()
+    bangla_property = semantic_admit_ids(
+        [(40, 0.8860), (41, 0.8805), (42, 0.8789), (43, 0.8684), (44, 0.8629)]
+    )
+    assert bangla_property == set()
+    bangla_movement = semantic_admit_ids(
+        [(50, 0.7754), (51, 0.7526), (52, 0.7473), (53, 0.7466), (54, 0.7425)]
+    )
+    assert bangla_movement == set()
+
+
+def test_semantic_admit_supplements_keyword_matching():
+    ranked = [
+        _chunk("43", "Every citizen shall have the right to be secure in his home."),
+        _chunk("33", "No person who is arrested shall be detained without the grounds."),
+    ]
+    ranked[0]["semantic_admit"] = True
+    query = "What rights does a person have after being arrested?"
+    chosen = select_relevant_chunks(query, ranked, limit=8)
+    assert [chunk["article_key"] for chunk in chosen] == ["43", "33"]
+    assert chosen[0]["act_title"]
+    flat = dict(ranked[0])
+    flat["semantic_admit"] = False
+    assert [chunk["article_key"] for chunk in select_relevant_chunks(query, [flat], limit=8)] == []
+
+
+def test_bangla_flat_neighbors_stay_out_and_the_keyword_article_stays():
+    from answer_quality import semantic_admit_ids
+
+    scored = [(1, 0.8772), (2, 0.8771), (3, 0.8706), (4, 0.8681), (5, 0.8653)]
+    assert semantic_admit_ids(scored) == set()
+    court = _chunk(
+        "112",
+        "প্রজাতন্ত্রের সকল কর্তৃপক্ষ সুপ্রীম কোর্টের সহায়তা করিবেন।",
+        collection="constitution-bn",
+    )
+    arrest = _chunk(
+        "33",
+        "গ্রেপ্তারকৃত কোন ব্যক্তিকে গ্রেপ্তারের কারণ জ্ঞাপন না করিয়া আটক রাখা যাইবে না।",
+        collection="constitution-bn",
+    )
+    query = "গ্রেপ্তারের পর একজন ব্যক্তির কী অধিকার থাকে?"
+    chosen = select_relevant_chunks(query, [court, arrest], limit=8)
+    assert [chunk["article_key"] for chunk in chosen] == ["33"]
+    assert chosen[0]["collection"] == "constitution-bn"
+    assert chosen[0]["act_title"]
+
+
+def test_two_chunks_of_one_article_each_have_to_qualify():
+    first = _chunk("33", "No person who is arrested shall be detained without the grounds.")
+    second = _chunk("33", "Preventive detention requires an advisory board.")
+    third = _chunk("33", "The detainee may make a representation against the detention order.")
+    second["chunk_id"] = "bd-constitution:en:33:1"
+    third["chunk_id"] = "bd-constitution:en:33:2"
+    second["semantic_admit"] = True
+    query = "What rights does a person have after being arrested?"
+    chosen = select_relevant_chunks(query, [first, second, third], limit=8)
+    assert [chunk["chunk_id"] for chunk in chosen] == [
+        "bd-constitution:en:33:0",
+        "bd-constitution:en:33:1",
+    ]
+    assert all(chunk["article_key"] == "33" for chunk in chosen)
+
+
+def test_context_limit_reads_the_environment(monkeypatch):
+    from answer_quality import context_limit
+
+    monkeypatch.delenv("ANSWER_CONTEXT_LIMIT", raising=False)
+    assert context_limit() == 8
+    monkeypatch.setenv("ANSWER_CONTEXT_LIMIT", "4")
+    assert context_limit() == 4
+    monkeypatch.setenv("ANSWER_CONTEXT_LIMIT", "40")
+    assert context_limit() == 12
+    monkeypatch.setenv("ANSWER_CONTEXT_LIMIT", "0")
+    assert context_limit() == 1
+    monkeypatch.setenv("ANSWER_CONTEXT_LIMIT", "many")
+    assert context_limit() == 8
 
 
 def test_definition_lists_are_not_used_as_the_rule():

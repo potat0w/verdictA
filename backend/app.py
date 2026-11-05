@@ -3,6 +3,7 @@ import secrets
 import urllib.error
 import urllib.parse
 import urllib.request
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Depends, HTTPException, status, File, UploadFile, Header
 from fastapi.responses import JSONResponse
@@ -20,7 +21,6 @@ from document_parser import (
 from clause_extractor import extract_clauses
 from document_analyzer import analyze_document, is_rate_limit
 from report_generator import build_report
-import uvicorn
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
@@ -36,7 +36,19 @@ import os
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    load_dotenv()
+    logger.info("Environment loaded. GROQ_API_KEY set: %s", bool(os.getenv("GROQ_API_KEY")))
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables ensured.")
+    except Exception as exc:
+        logger.exception("Failed to initialize database: %s", exc)
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -45,18 +57,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Ensure DB tables exist on startup
-@app.on_event("startup")
-def on_startup() -> None:
-    # Load .env if present
-    load_dotenv()
-    logger.info("Environment loaded. GROQ_API_KEY set: %s", bool(os.getenv("GROQ_API_KEY")))
-    try:
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables ensured.")
-    except Exception as exc:
-        logger.exception("Failed to initialize database: %s", exc)
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
@@ -124,6 +124,8 @@ async def _run_legal_question(payload: Question, *, voice: bool = False):
             voice=voice,
         )
         return {"answer": answer}
+    except HTTPException:
+        raise
     except FileNotFoundError as exc:
         logger.exception("/ask missing embeddings: %s", exc)
         raise HTTPException(status_code=503, detail="Embeddings not found. Please build the index.")
@@ -326,6 +328,13 @@ async def health():
         "embeddings_metadata_present": os.path.exists(getattr(rag_utils, "META_PATH", "")),
         "groq_key_configured": bool(os.getenv("GROQ_API_KEY")),
         "groq_model_configured": bool(os.getenv("GROQ_MODEL_NAME")),
+        "qdrant_configured": bool(os.getenv("QDRANT_URL", "").strip()),
+        "embedding_provider": os.getenv("EMBEDDING_PROVIDER", "tei").strip() or "tei",
+        "embedding_model": os.getenv(
+            "EMBEDDING_MODEL",
+            "sentence-transformers/all-MiniLM-L6-v2",
+        ).strip(),
+        "jina_key_configured": bool(os.getenv("JINA_API_KEY", "").strip()),
     }
 
 @app.get("/warmup")
@@ -348,9 +357,22 @@ def get_db():
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-SECRET_KEY = "your_secret_key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+_ephemeral_jwt_secret = ""
+
+
+def _jwt_secret() -> str:
+    """Signing key from JWT_SECRET. A process-only key is used when it is unset."""
+    global _ephemeral_jwt_secret
+    load_dotenv()
+    configured = os.getenv("JWT_SECRET", "").strip()
+    if configured:
+        return configured
+    if not _ephemeral_jwt_secret:
+        _ephemeral_jwt_secret = secrets.token_hex(32)
+        logger.warning("JWT_SECRET is unset. Login tokens will not survive a restart.")
+    return _ephemeral_jwt_secret
 
 class UserCreate(BaseModel):
     username: str
@@ -386,7 +408,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, _jwt_secret(), algorithm=ALGORITHM)
 
 @app.post("/token")
 def login_for_access_token(
@@ -408,7 +430,7 @@ def login_for_access_token(
 
 def verify_token(token: str = Depends(oauth2_scheme)):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, _jwt_secret(), algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=403, detail="Token is invalid or expired")

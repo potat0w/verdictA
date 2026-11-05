@@ -1,6 +1,6 @@
-"""Build the FAISS index and chunk metadata.
+"""Embed the statute dataset with the local TEI server and upload it to Qdrant.
 
-Writes temporary files and replaces the live index only after the embed finishes.
+Does not load the embedding model in-process, and does not read faiss.index.
 Footnotes are not vectorized. A language-tagged question searches the matching
 constitution collection only.
 """
@@ -8,12 +8,8 @@ constitution collection only.
 from __future__ import annotations
 
 import json
+import logging
 import os
-import pickle
-
-import faiss
-import numpy as np
-from fastembed import TextEmbedding
 
 from article_parser import classify_constitution_section
 from chunking import (
@@ -26,10 +22,10 @@ from chunking import (
 DOCUMENT_ID_CONSTITUTION = "bd-constitution"
 EN_CONSTITUTION_TITLE_MARK = "Constitution of the People"
 BN_CONSTITUTION_TITLE = "গণপ্রজাতন্ত্রী বাংলাদেশের সংবিধান"
-EMBED_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 QUERY_PREFIX = ""
 PASSAGE_PREFIX = ""
-EMBED_BATCH = 64
+EMBED_BATCH = 32
+UPLOAD_BATCH = 128
 
 
 def is_english_constitution(act: dict) -> bool:
@@ -171,58 +167,181 @@ def build_chunks(acts: list) -> list:
     return en_pieces + bn_pieces + expand_pieces(all_chunks)
 
 
-def embed_texts(model: TextEmbedding, texts: list[str]) -> np.ndarray:
-    batches = []
-    total = len(texts)
-    for start in range(0, total, EMBED_BATCH):
-        batch = texts[start : start + EMBED_BATCH]
-        prefixed = [f"{PASSAGE_PREFIX}{text}" for text in batch]
-        vectors = np.array(list(model.embed(prefixed)), dtype="float32")
-        batches.append(vectors)
-        print(f"embedded {min(start + EMBED_BATCH, total)}/{total}", flush=True)
-    return np.vstack(batches)
+def write_meta(base_dir: str, count: int) -> None:
+    from embedding_provider import STORED_DIMENSION, STORED_DISTANCE, STORED_MODEL
 
-
-def write_index(base_dir: str, chunks: list, vectors: np.ndarray) -> None:
     embed_dir = os.path.join(base_dir, "embeddings")
     os.makedirs(embed_dir, exist_ok=True)
-    index_tmp = os.path.join(embed_dir, "faiss.index.tmp")
-    meta_tmp = os.path.join(embed_dir, "chunk_metadata.pkl.tmp")
     info_tmp = os.path.join(embed_dir, "index_meta.json.tmp")
-
-    index = faiss.IndexFlatL2(vectors.shape[1])
-    index.add(vectors)
-    faiss.write_index(index, index_tmp)
-    with open(meta_tmp, "wb") as handle:
-        pickle.dump(chunks, handle)
     with open(info_tmp, "w", encoding="utf-8") as handle:
         json.dump(
             {
-                "model_name": EMBED_MODEL_NAME,
+                "model_name": STORED_MODEL,
                 "query_prefix": QUERY_PREFIX,
                 "passage_prefix": PASSAGE_PREFIX,
-                "chunks": len(chunks),
+                "dimension": STORED_DIMENSION,
+                "distance": STORED_DISTANCE,
+                "chunks": count,
+                "index_provider": "tei",
             },
             handle,
         )
-
-    os.replace(index_tmp, os.path.join(embed_dir, "faiss.index"))
-    os.replace(meta_tmp, os.path.join(embed_dir, "chunk_metadata.pkl"))
     os.replace(info_tmp, os.path.join(embed_dir, "index_meta.json"))
 
 
+def _cosine(left: list[float], right: list[float]) -> float:
+    return sum(a * b for a, b in zip(left, right))
+
+
+def _stored_vector(point) -> list[float]:
+    vector = point.vector
+    if isinstance(vector, dict):
+        vector = next(iter(vector.values()))
+    return [float(value) for value in vector]
+
+
+def validate_index(chunks: list) -> None:
+    """Check collection shape, a stored vector, and one English similarity search."""
+    from qdrant_client.models import FieldCondition, Filter, MatchValue
+
+    from embedding_provider import STORED_DIMENSION, embed_query, embed_texts
+    from qdrant_store import (
+        COLLECTION_NAME,
+        assert_collection_ready,
+        get_client,
+        serving_status,
+    )
+
+    assert_collection_ready(len(chunks))
+    status = serving_status()
+    query = "What rights does a person have after being arrested?"
+    query_vector = embed_query(query)
+    document_vector = embed_texts([chunks[0]["content"]], provider="tei")[0]
+    if len(query_vector) != STORED_DIMENSION or len(document_vector) != STORED_DIMENSION:
+        raise RuntimeError(
+            f"Query width {len(query_vector)} and document width {len(document_vector)} "
+            f"must both be {STORED_DIMENSION}"
+        )
+    stored = get_client().retrieve(
+        collection_name=COLLECTION_NAME,
+        ids=[0],
+        with_payload=True,
+        with_vectors=True,
+    )
+    if not stored:
+        raise RuntimeError("Point 0 is missing after upload")
+    agreement = _cosine(document_vector, _stored_vector(stored[0]))
+    if agreement < 0.999:
+        raise RuntimeError(f"Stored vector does not match a fresh TEI embedding ({agreement:.4f})")
+    found = get_client().query_points(
+        collection_name=COLLECTION_NAME,
+        query=query_vector,
+        query_filter=Filter(
+            must=[FieldCondition(key="collection", match=MatchValue(value="constitution-en"))]
+        ),
+        limit=5,
+        with_payload=True,
+    )
+    print(
+        f"collection={status['name']} size={status['size']} "
+        f"distance={status['distance']} points={status['points']}",
+        flush=True,
+    )
+    print(
+        f"query_dimensions={len(query_vector)} document_dimensions={len(document_vector)} "
+        f"stored_agreement={agreement:.4f}",
+        flush=True,
+    )
+    relevant = False
+    for point in found.points:
+        payload = point.payload or {}
+        text = payload.get("content") or ""
+        print(
+            f"hit id={point.id} score={point.score:.4f} "
+            f"article={payload.get('article_key')} title={payload.get('section_title')}",
+            flush=True,
+        )
+        print(text[:180].replace("\n", " "), flush=True)
+        folded = text.lower()
+        if "arrest" in folded or "detention" in folded:
+            relevant = True
+    if not relevant:
+        raise RuntimeError("English arrest query did not return an arrest or detention passage")
+    bangla = "গ্রেপ্তারের পর একজন ব্যক্তির কী অধিকার থাকে?"
+    bangla_vector = embed_texts([bangla], provider="tei")[0]
+    if len(bangla_vector) != len(query_vector):
+        raise RuntimeError("Bangla query embedding width does not match the English query")
+    bangla_hits = get_client().query_points(
+        collection_name=COLLECTION_NAME,
+        query=bangla_vector,
+        query_filter=Filter(
+            must=[FieldCondition(key="collection", match=MatchValue(value="constitution-bn"))]
+        ),
+        limit=3,
+        with_payload=True,
+    )
+    for point in bangla_hits.points:
+        payload = point.payload or {}
+        text = (payload.get("content") or "")[:180].replace("\n", " ")
+        print(
+            f"bn hit id={point.id} score={point.score:.4f} "
+            f"article={payload.get('article_key')} {text}",
+            flush=True,
+        )
+
+
 def main() -> None:
+    from dotenv import load_dotenv
+
+    from embedding_provider import STORED_MODEL, embed_texts
+    from qdrant_store import ensure_serving_collection, upsert_chunk_batch
+
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    load_dotenv()
     base_dir = os.path.dirname(os.path.abspath(__file__))
     source = os.path.join(base_dir, "processed_law.json")
     with open(source, encoding="utf-8") as handle:
         data = json.load(handle)
 
     chunks = build_chunks(data["acts"])
-    print(f"chunked {len(chunks)} passages", flush=True)
-    model = TextEmbedding(model_name=EMBED_MODEL_NAME)
-    vectors = embed_texts(model, [chunk["content"] for chunk in chunks])
-    write_index(base_dir, chunks, vectors)
-    print(f"Rebuilt FAISS index with {EMBED_MODEL_NAME} ({len(chunks)} chunks).")
+    total = len(chunks)
+    print(f"chunked {total} passages", flush=True)
+    existing = ensure_serving_collection([chunk["chunk_id"] for chunk in chunks])
+    missing = [index for index in range(total) if index not in existing]
+    print(
+        f"uploading {len(missing)} passages, {len(existing)} already stored",
+        flush=True,
+    )
+
+    pending: list[tuple[int, dict, list[float]]] = []
+    done = len(existing)
+    for start in range(0, len(missing), EMBED_BATCH):
+        ids = missing[start : start + EMBED_BATCH]
+        texts = [f"{PASSAGE_PREFIX}{chunks[index]['content']}" for index in ids]
+        try:
+            vectors = embed_texts(texts, provider="tei")
+        except Exception:
+            logging.exception("Embedding failed for rows %s-%s", ids[0], ids[-1])
+            raise
+        if len(vectors) != len(ids):
+            raise RuntimeError(
+                f"TEI returned {len(vectors)} vectors for {len(ids)} passages"
+            )
+        for point_id, vector in zip(ids, vectors):
+            pending.append((point_id, chunks[point_id], vector))
+        if len(pending) >= UPLOAD_BATCH:
+            upsert_chunk_batch(pending)
+            pending = []
+        done = len(existing) + start + len(ids)
+        print(f"indexed {done}/{total}", flush=True)
+    if pending:
+        upsert_chunk_batch(pending)
+        print(f"indexed {total}/{total}", flush=True)
+
+    write_meta(base_dir, total)
+    validate_index(chunks)
+    print(f"Indexed {total} passages with {STORED_MODEL}.")
 
 
 if __name__ == "__main__":

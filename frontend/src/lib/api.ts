@@ -41,19 +41,25 @@ export interface VoiceSession {
   conversationToken?: string;
 }
 
+function messageFromErrorBody(text: string, status: number) {
+  const fallback = text.trim() || `Request failed with status ${status}`;
+  try {
+    const errorObj = JSON.parse(text) as { detail?: unknown };
+    if (typeof errorObj?.detail === "string" && errorObj.detail.trim()) {
+      return errorObj.detail;
+    }
+    if (errorObj?.detail) return JSON.stringify(errorObj.detail);
+  } catch {
+    // Gateway pages are plain text. Keep that text instead of the parser error.
+  }
+  return fallback;
+}
+
 export async function getVoiceSession(): Promise<VoiceSession> {
   const response = await fetch(`${API_BASE_URL}/voice/session`);
   if (!response.ok) {
     const text = await response.text();
-    try {
-      const errorObj = JSON.parse(text);
-      if (typeof errorObj?.detail === "string") {
-        throw new Error(errorObj.detail);
-      }
-    } catch (err) {
-      if (err instanceof Error && err.message !== text) throw err;
-    }
-    throw new Error(text || `Request failed with status ${response.status}`);
+    throw new Error(messageFromErrorBody(text, response.status));
   }
   return response.json();
 }
@@ -79,19 +85,7 @@ export async function askLegalQuestion(
 
   if (!response.ok) {
     const text = await response.text();
-    try {
-      const errorObj = JSON.parse(text);
-      if (errorObj?.detail) {
-        throw new Error(
-          typeof errorObj.detail === "string"
-            ? errorObj.detail
-            : JSON.stringify(errorObj.detail)
-        );
-      }
-    } catch (err) {
-      if (err instanceof Error && err.message !== text) throw err;
-    }
-    throw new Error(text || `Request failed with status ${response.status}`);
+    throw new Error(messageFromErrorBody(text, response.status));
   }
 
   return response.json();
@@ -191,19 +185,7 @@ export async function analyzeDocument(file: File): Promise<AnalysisReport> {
 
   if (!response.ok) {
     const text = await response.text();
-    try {
-      const errorObj = JSON.parse(text);
-      if (errorObj?.detail) {
-        throw new Error(
-          typeof errorObj.detail === "string"
-            ? errorObj.detail
-            : JSON.stringify(errorObj.detail)
-        );
-      }
-    } catch (err) {
-      if (err instanceof Error && err.message !== text) throw err;
-    }
-    throw new Error(text || `Request failed with status ${response.status}`);
+    throw new Error(messageFromErrorBody(text, response.status));
   }
 
   return response.json();

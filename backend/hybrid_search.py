@@ -109,25 +109,42 @@ def partition_ids(chunks: list[dict], language: str | None) -> list[int]:
 
 
 class BM25Index:
-    def __init__(self, documents: list[tuple[int, str]]):
+    def __init__(self, documents: list[tuple[int, str]] | None = None):
         self.row_ids: list[int] = []
         self.lengths: list[int] = []
         self.postings: dict[str, list[tuple[int, int]]] = defaultdict(list)
         self.df: Counter[str] = Counter()
-        for doc_index, (row_id, text) in enumerate(documents):
-            counts = Counter(tokenize(text))
-            length = sum(counts.values()) or 1
-            self.row_ids.append(row_id)
-            self.lengths.append(length)
-            self.df.update(counts.keys())
-            for term, freq in counts.items():
-                self.postings[term].append((doc_index, freq))
+        self.n_docs = 0
+        self.avgdl = 0.0
+        self._open = True
+        if documents:
+            for row_id, text in documents:
+                self.add(row_id, text)
+            self.finish()
+
+    def add(self, row_id: int, text: str) -> None:
+        """Add one document. Passage text is not kept after the counts are stored."""
+        if not self._open:
+            raise RuntimeError("BM25 index is already finished")
+        counts = Counter(tokenize(text))
+        length = sum(counts.values()) or 1
+        doc_index = len(self.row_ids)
+        self.row_ids.append(row_id)
+        self.lengths.append(length)
+        self.df.update(counts.keys())
+        for term, freq in counts.items():
+            self.postings[term].append((doc_index, freq))
+
+    def finish(self) -> None:
+        if not self._open:
+            return
         self.n_docs = len(self.row_ids)
-        self.avgdl = (
-            sum(self.lengths) / self.n_docs if self.n_docs else 0.0
-        )
+        self.avgdl = sum(self.lengths) / self.n_docs if self.n_docs else 0.0
+        self._open = False
 
     def rank(self, query: str, k: int = 20) -> list[int]:
+        if self._open:
+            self.finish()
         if self.n_docs == 0 or k <= 0:
             return []
         scores = [0.0] * self.n_docs

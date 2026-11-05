@@ -33,6 +33,17 @@ function unavailable() {
   );
 }
 
+function isApiError(body: ArrayBuffer) {
+  const text = new TextDecoder().decode(body).trim();
+  if (!text.startsWith("{")) return false;
+  try {
+    const data = JSON.parse(text) as unknown;
+    return data !== null && typeof data === "object";
+  } catch {
+    return false;
+  }
+}
+
 async function forward(request: NextRequest, path: string[]) {
   if (path.some((part) => part === ".." || part === "." || part === "")) {
     return Response.json({ detail: "Not found." }, { status: 404 });
@@ -65,7 +76,9 @@ async function forward(request: NextRequest, path: string[]) {
     }
     if (upstream.status !== 502 && upstream.status !== 503) break;
     const failed = await upstream.clone().arrayBuffer();
-    if (failed.byteLength > 0 && upstream.status === 503) break;
+    // A JSON 503 is a real API error, such as a missing index. A plain
+    // gateway page is not, so try the next origin.
+    if (upstream.status === 503 && isApiError(failed)) break;
   }
 
   if (!upstream) return unavailable();
@@ -78,7 +91,7 @@ async function forward(request: NextRequest, path: string[]) {
   const payload = await upstream.arrayBuffer();
   if (
     (upstream.status === 502 || upstream.status === 503) &&
-    payload.byteLength === 0
+    !isApiError(payload)
   ) {
     return unavailable();
   }
