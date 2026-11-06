@@ -154,7 +154,12 @@ def _retrieve_remote(query: str, top_k: int, language: Optional[str]) -> List[Di
     semantic_k = min(max(top_k * 4, SEMANTIC_CANDIDATES), len(row_ids))
     lexical_k = min(max(top_k * 4, LEXICAL_CANDIDATES), len(row_ids))
     collection = f"constitution-{language}"
-    scored = search_collection_scored(_query_vector(query), collection, semantic_k)
+    # The stored MiniLM vectors are English. Bangla scores sit in one high band
+    # and the nearest articles are the wrong ones, so Bangla rank is the word match.
+    if language == "bn":
+        scored = []
+    else:
+        scored = search_collection_scored(_query_vector(query), collection, semantic_k)
     admit = semantic_admit_ids(scored)
     semantic = [row_id for row_id, _score in scored]
     lexical = _bm25_pairs(collection, rows).rank(query, lexical_k)

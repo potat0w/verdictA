@@ -7,6 +7,60 @@ from hybrid_search import BM25Index
 from answer_quality import question_script
 
 
+def test_bangla_inflection_matches_the_constitution_word():
+    from hybrid_search import tokenize
+
+    query = set(tokenize("চলাফেরার স্বাধীনতা কী?"))
+    article = set(tokenize("অবাধ চলাফেরা করিবার অধিকার প্রত্যেক নাগরিকের থাকিবে।"))
+    assert "চলাফেরা" in query & article
+    arrest = set(tokenize("গ্রেপ্তারের পর একজন ব্যক্তির কী অধিকার থাকে?"))
+    provision = set(tokenize("গ্রেপ্তারকৃত কোন ব্যক্তিকে গ্রেপ্তারের কারণ জ্ঞাপন করা হইবে।"))
+    assert "গ্রেপ্তার" in arrest & provision
+    assert tokenize("arrested") == ["arrest"]
+
+
+def test_bangla_retrieval_uses_the_word_match(monkeypatch):
+    import rag_utils
+
+    def fail(vector, collection, k):
+        raise AssertionError("Bangla search must not use the English vectors")
+
+    monkeypatch.setattr("qdrant_store.search_collection_scored", fail)
+    monkeypatch.setattr(
+        "qdrant_store.iter_payloads",
+        lambda collection, language=None: iter(
+            [
+                (
+                    1,
+                    {
+                        "collection": collection,
+                        "content": "সংগঠনের স্বাধীনতা প্রত্যেক নাগরিকের থাকিবে।",
+                        "article_key": "9",
+                        "chunk_id": "bn-9",
+                        "chunk_type": "article",
+                    },
+                ),
+                (
+                    2,
+                    {
+                        "collection": collection,
+                        "content": "বাংলাদেশের সর্বত্র অবাধ চলাফেরা করিবার অধিকার প্রত্যেক নাগরিকের থাকিবে।",
+                        "article_key": "36",
+                        "chunk_id": "bn-36",
+                        "chunk_type": "article",
+                    },
+                ),
+            ]
+        ),
+    )
+    rag_utils._partition_cache.clear()
+    rag_utils._bm25_cache.clear()
+    hits = rag_utils.retrieve_chunks("চলাফেরার স্বাধীনতা কী?", top_k=2, language="bn")
+    rag_utils._partition_cache.clear()
+    rag_utils._bm25_cache.clear()
+    assert {chunk["article_key"] for chunk in hits} == {"36", "9"}
+
+
 def test_streamed_bm25_matches_the_batch_index():
     documents = [
         (4, "dismissal without notice after a finding of misconduct"),
