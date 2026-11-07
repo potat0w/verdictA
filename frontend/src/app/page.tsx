@@ -239,9 +239,40 @@ function LandingPage() {
         </div>
       </section>
 
+      <section className="topics-section" id="topics" aria-labelledby="topics-title">
+        <div className="section-heading">
+          <p className="section-label">02 / What you can ask</p>
+          <h2 id="topics-title">
+            Start with
+            <br />
+            <em>a right.</em>
+          </h2>
+        </div>
+        <div className="topic-grid">
+          {topics.map(([article, title, bangla, body, query]) => (
+            <button
+              type="button"
+              className="topic-card"
+              key={article}
+              onClick={() => openChat(query)}
+            >
+              <span className="topic-kicker">
+                {article}
+                <span lang="bn">{bangla}</span>
+              </span>
+              <h3>{title}</h3>
+              <p>{body}</p>
+              <span className="topic-ask">
+                Ask this <ArrowUpRight size={14} strokeWidth={1.5} />
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
       <section className="chat-section" id="chat" aria-labelledby="chat-title">
         <div className="section-heading">
-          <p className="section-label">02 / A small example</p>
+          <p className="section-label">03 / A small example</p>
           <h2 id="chat-title">
             Questions deserve
             <br />
@@ -292,7 +323,7 @@ function LandingPage() {
 
       <section className="ways-section" aria-labelledby="ways-title">
         <div className="section-heading">
-          <p className="section-label">03 / Two ways in</p>
+          <p className="section-label">04 / Two ways in</p>
           <h2 id="ways-title">
             A question,
             <br />
@@ -326,7 +357,7 @@ function LandingPage() {
       </section>
 
       <section className="trust-section" aria-label="Trust and source">
-        <p className="section-label">04 / The source</p>
+        <p className="section-label">05 / The source</p>
         <blockquote>
           “Built on the official text
           <br />
@@ -343,37 +374,6 @@ function LandingPage() {
             <br />
             Dhaka, BD
           </span>
-        </div>
-      </section>
-
-      <section className="topics-section" id="topics" aria-labelledby="topics-title">
-        <div className="section-heading">
-          <p className="section-label">05 / What you can ask</p>
-          <h2 id="topics-title">
-            Start with
-            <br />
-            <em>a right.</em>
-          </h2>
-        </div>
-        <div className="topic-grid">
-          {topics.map(([article, title, bangla, body, query]) => (
-            <button
-              type="button"
-              className="topic-card"
-              key={article}
-              onClick={() => openChat(query)}
-            >
-              <span className="topic-kicker">
-                {article}
-                <span lang="bn">{bangla}</span>
-              </span>
-              <h3>{title}</h3>
-              <p>{body}</p>
-              <span className="topic-ask">
-                Ask this <ArrowUpRight size={14} strokeWidth={1.5} />
-              </span>
-            </button>
-          ))}
         </div>
       </section>
 
