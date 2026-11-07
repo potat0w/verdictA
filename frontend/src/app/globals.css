@@ -686,6 +686,7 @@ video {
   grid-template-columns: 1fr 1.35fr;
   gap: clamp(28px, 3vw, 48px);
   align-items: start;
+  border-top: 1px solid var(--line);
 }
 
 .sample-answer h3 {

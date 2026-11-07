@@ -239,35 +239,55 @@ function LandingPage() {
         </div>
       </section>
 
-      <section className="topics-section" id="topics" aria-labelledby="topics-title">
+      <section className="chat-section" id="chat" aria-labelledby="chat-title">
         <div className="section-heading">
-          <p className="section-label">02 / What you can ask</p>
-          <h2 id="topics-title">
-            Start with
+          <p className="section-label">02 / A small example</p>
+          <h2 id="chat-title">
+            Questions deserve
             <br />
-            <em>a right.</em>
+            <em>good answers.</em>
           </h2>
         </div>
-        <div className="topic-grid">
-          {topics.map(([article, title, bangla, body, query]) => (
-            <button
-              type="button"
-              className="topic-card"
-              key={article}
-              onClick={() => openChat(query)}
-            >
-              <span className="topic-kicker">
-                {article}
-                <span lang="bn">{bangla}</span>
-              </span>
-              <h3>{title}</h3>
-              <p>{body}</p>
-              <span className="topic-ask">
-                Ask this <ArrowUpRight size={14} strokeWidth={1.5} />
-              </span>
-            </button>
-          ))}
-        </div>
+        <article className="sample-answer">
+          <p className="sample-question">
+            “Assume that the agreement between Rahim and Karim was never
+            registered. Karim has paid Tk. 5,00,000 in advance but has not
+            deposited the remaining consideration in court. Can Karim still
+            obtain a decree for specific performance under Bangladeshi law?
+            Identify the exact statutory provision and explain the legal
+            requirements.”
+          </p>
+          <h3>Direct answer</h3>
+          <p>
+            Karim cannot obtain a decree for specific performance because the
+            statutory conditions for enforcing a contract for the sale of
+            immovable property have not been satisfied.
+          </p>
+          <div className="sample-law">
+            <h3>What the law says</h3>
+            <p>
+              <strong>Section 7 of the Specific Relief Act, 1877</strong>{" "}
+              provides that “no contract for sale of any immovable property can
+              be specifically enforced unless – (a) the contract is in writing
+              and <strong>registered</strong> under the Registration Act, 1908,
+              whether or not the transferee has taken possession of the
+              property or any part thereof; and (b) the balance amount of
+              consideration of the contract is{" "}
+              <strong>deposited in the court</strong> at the time of filing the
+              suit for specific performance of the contract.”
+            </p>
+            <p>
+              <strong>Section 24 of the Specific Relief Act, 1877</strong>{" "}
+              further bars specific performance “in favour of a person … who
+              has become incapable of performing, or violates, any essential
+              term of the contract … or who has <strong>not deposited</strong>{" "}
+              the balance consideration as required by Section 7.”
+            </p>
+          </div>
+        </article>
+        <button type="button" className="button button-outline" onClick={() => openChat()}>
+          Open the conversation <ArrowUpRight size={16} strokeWidth={1.5} />
+        </button>
       </section>
 
       <section className="ways-section" aria-labelledby="ways-title">
@@ -326,55 +346,35 @@ function LandingPage() {
         </div>
       </section>
 
-      <section className="chat-section" id="chat" aria-labelledby="chat-title">
+      <section className="topics-section" id="topics" aria-labelledby="topics-title">
         <div className="section-heading">
-          <p className="section-label">05 / A small example</p>
-          <h2 id="chat-title">
-            Questions deserve
+          <p className="section-label">05 / What you can ask</p>
+          <h2 id="topics-title">
+            Start with
             <br />
-            <em>good answers.</em>
+            <em>a right.</em>
           </h2>
         </div>
-        <article className="sample-answer">
-          <p className="sample-question">
-            “Assume that the agreement between Rahim and Karim was never
-            registered. Karim has paid Tk. 5,00,000 in advance but has not
-            deposited the remaining consideration in court. Can Karim still
-            obtain a decree for specific performance under Bangladeshi law?
-            Identify the exact statutory provision and explain the legal
-            requirements.”
-          </p>
-          <h3>Direct answer</h3>
-          <p>
-            Karim cannot obtain a decree for specific performance because the
-            statutory conditions for enforcing a contract for the sale of
-            immovable property have not been satisfied.
-          </p>
-          <div className="sample-law">
-            <h3>What the law says</h3>
-            <p>
-              <strong>Section 7 of the Specific Relief Act, 1877</strong>{" "}
-              provides that “no contract for sale of any immovable property can
-              be specifically enforced unless – (a) the contract is in writing
-              and <strong>registered</strong> under the Registration Act, 1908,
-              whether or not the transferee has taken possession of the
-              property or any part thereof; and (b) the balance amount of
-              consideration of the contract is{" "}
-              <strong>deposited in the court</strong> at the time of filing the
-              suit for specific performance of the contract.”
-            </p>
-            <p>
-              <strong>Section 24 of the Specific Relief Act, 1877</strong>{" "}
-              further bars specific performance “in favour of a person … who
-              has become incapable of performing, or violates, any essential
-              term of the contract … or who has <strong>not deposited</strong>{" "}
-              the balance consideration as required by Section 7.”
-            </p>
-          </div>
-        </article>
-        <button type="button" className="button button-outline" onClick={() => openChat()}>
-          Open the conversation <ArrowUpRight size={16} strokeWidth={1.5} />
-        </button>
+        <div className="topic-grid">
+          {topics.map(([article, title, bangla, body, query]) => (
+            <button
+              type="button"
+              className="topic-card"
+              key={article}
+              onClick={() => openChat(query)}
+            >
+              <span className="topic-kicker">
+                {article}
+                <span lang="bn">{bangla}</span>
+              </span>
+              <h3>{title}</h3>
+              <p>{body}</p>
+              <span className="topic-ask">
+                Ask this <ArrowUpRight size={14} strokeWidth={1.5} />
+              </span>
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="faq-section" aria-labelledby="faq-title">
