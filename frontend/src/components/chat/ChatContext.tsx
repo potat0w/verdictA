@@ -3,7 +3,7 @@
 import { createContext, useContext } from "react";
 
 type ChatContextValue = {
-  openChat: () => void;
+  openChat: (prompt?: string) => void;
 };
 
 export const ChatContext = createContext<ChatContextValue>({

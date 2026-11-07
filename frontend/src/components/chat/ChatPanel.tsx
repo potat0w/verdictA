@@ -27,6 +27,7 @@ interface Message {
 
 interface ChatPanelProps {
   onClose: () => void;
+  initialPrompt?: string | null;
 }
 
 const LANG_KEY = "verdictai-language";
@@ -49,7 +50,10 @@ function fromStored(messages: StoredMessage[]): Message[] {
   }));
 }
 
-export default function ChatPanel({ onClose }: ChatPanelProps) {
+export default function ChatPanel({
+  onClose,
+  initialPrompt = null,
+}: ChatPanelProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionIdState] = useState<string | null>(
     null
@@ -98,16 +102,23 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
   useEffect(() => {
     const loaded = loadChatSessions();
     setSessions(loaded);
-    const savedActiveId = getActiveSessionId();
-    const active = loaded.find((s) => s.id === savedActiveId);
-    if (active) {
-      setActiveSessionIdState(active.id);
-      setMessages(fromStored(active.messages));
+    if (initialPrompt) {
+      setActiveSessionIdState(null);
+      setActiveSessionId(null);
+      setMessages([]);
+      setInput(initialPrompt);
+    } else {
+      const savedActiveId = getActiveSessionId();
+      const active = loaded.find((s) => s.id === savedActiveId);
+      if (active) {
+        setActiveSessionIdState(active.id);
+        setMessages(fromStored(active.messages));
+      }
     }
     const savedLang = localStorage.getItem(LANG_KEY);
     if (savedLang === "bn" || savedLang === "en") setLanguage(savedLang);
     setHistoryReady(true);
-  }, []);
+  }, [initialPrompt]);
 
   const persistSession = useCallback(
     (sessionId: string, nextMessages: Message[]) => {

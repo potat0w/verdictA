@@ -23,6 +23,92 @@ const steps = [
   ],
 ] as const;
 
+const facts = [
+  ["02", "Languages", "Ask in Bangla or English."],
+  ["Cite", "Citations", "Every answer names its article."],
+  ["01", "Source", "The official constitutional text."],
+  ["Text", "Analyze", "Paste a contract and check each clause."],
+] as const;
+
+const topics = [
+  [
+    "Art. 27",
+    "Equality",
+    "সমতা",
+    "All citizens are equal before law.",
+    "What does Article 27 of the Constitution of Bangladesh say about equality before the law?",
+  ],
+  [
+    "Art. 32",
+    "Life and liberty",
+    "জীবন ও স্বাধীনতা",
+    "Protection of life and personal liberty.",
+    "What does Article 32 say about protection of the right to life and personal liberty in Bangladesh?",
+  ],
+  [
+    "Art. 33",
+    "Arrest",
+    "গ্রেপ্তার",
+    "Safeguards when a person is arrested.",
+    "What safeguards does Article 33 of the Constitution of Bangladesh give a person who is arrested?",
+  ],
+  [
+    "Art. 39",
+    "Speech",
+    "বাক্‌স্বাধীনতা",
+    "Thought, conscience, and expression.",
+    "What does Article 39 say about freedom of thought, conscience and speech in Bangladesh?",
+  ],
+  [
+    "Art. 41",
+    "Religion",
+    "ধর্ম",
+    "Freedom to profess and practise religion.",
+    "What does Article 41 of the Bangladesh Constitution say about freedom of religion?",
+  ],
+  [
+    "Art. 102",
+    "Writs",
+    "রিট",
+    "How the High Court protects rights.",
+    "What powers does the High Court Division have under Article 102 to protect fundamental rights in Bangladesh?",
+  ],
+] as const;
+
+const ticker = [
+  "Fundamental rights",
+  "Equality",
+  "Arrest",
+  "Expression",
+  "Religion",
+  "Citizenship",
+  "Property",
+  "Writs",
+  "মৌলিক অধিকার",
+  "সমতা",
+  "গ্রেপ্তার",
+  "বাক্‌স্বাধীনতা",
+];
+
+const faqs = [
+  [
+    "Is this legal advice?",
+    "No. VerdictAI explains the constitutional text in plain language. It is not a lawyer, and it is not a substitute for advice on your own situation.",
+  ],
+  [
+    "Which languages can I use?",
+    "Bangla or English. Ask the way you would ask a person, and the reply points back to the article that grounds it.",
+  ],
+  [
+    "Where do the answers come from?",
+    "From the Constitution of the People’s Republic of Bangladesh. Each reply is meant to stay tied to that text, with the article named.",
+  ],
+  [
+    "What does Analyze do?",
+    "Copy the text from your PDF or TXT file and paste it into the analyzer. File upload is not available. Each clause is checked against retrieved articles.",
+  ],
+] as const;
+
 function LandingPage() {
   const { openChat } = useChat();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -38,6 +124,7 @@ function LandingPage() {
             Chat
           </button>
           <a href="/analyze">Analyze</a>
+          <a href="#topics">Topics</a>
           <a href="#about">About</a>
           <a href="#contact">Contact</a>
         </nav>
@@ -67,6 +154,9 @@ function LandingPage() {
           </button>
           <a href="/analyze" onClick={() => setMobileOpen(false)}>
             Analyze
+          </a>
+          <a href="#topics" onClick={() => setMobileOpen(false)}>
+            Topics
           </a>
           <a href="#about" onClick={() => setMobileOpen(false)}>
             About
@@ -99,12 +189,35 @@ function LandingPage() {
           <button type="button" className="button button-dark" onClick={openChat}>
             Ask a question <ArrowUpRight size={16} strokeWidth={1.5} />
           </button>
+          <ul className="hero-points">
+            <li>Bangla + English</li>
+            <li>Cited articles</li>
+            <li>Plain language</li>
+          </ul>
         </div>
         <p className="hero-note">
           Dhaka / Bangladesh
           <br />
-          01 — 04
+          বাংলা · English
         </p>
+      </section>
+
+      <div className="topic-ticker" aria-hidden="true">
+        <div className="topic-ticker-track">
+          {[...ticker, ...ticker].map((item, index) => (
+            <span key={`${item}-${index}`}>{item}</span>
+          ))}
+        </div>
+      </div>
+
+      <section className="facts-band" aria-label="What VerdictAI offers">
+        {facts.map(([mark, title, body]) => (
+          <div className="fact" key={title}>
+            <strong>{mark}</strong>
+            <span>{title}</span>
+            <p>{body}</p>
+          </div>
+        ))}
       </section>
 
       <section className="intro-band" id="about" aria-labelledby="intro-title">
@@ -146,8 +259,74 @@ function LandingPage() {
         </div>
       </section>
 
+      <section className="topics-section" id="topics" aria-labelledby="topics-title">
+        <div className="section-heading">
+          <p className="section-label">03 / What you can ask</p>
+          <h2 id="topics-title">
+            Start with
+            <br />
+            <em>a right.</em>
+          </h2>
+        </div>
+        <div className="topic-grid">
+          {topics.map(([article, title, bangla, body, query]) => (
+            <button
+              type="button"
+              className="topic-card"
+              key={article}
+              onClick={() => openChat(query)}
+            >
+              <span className="topic-kicker">
+                {article}
+                <span lang="bn">{bangla}</span>
+              </span>
+              <h3>{title}</h3>
+              <p>{body}</p>
+              <span className="topic-ask">
+                Ask this <ArrowUpRight size={14} strokeWidth={1.5} />
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="ways-section" aria-labelledby="ways-title">
+        <div className="section-heading">
+          <p className="section-label">04 / Two ways in</p>
+          <h2 id="ways-title">
+            A question,
+            <br />
+            <em>or a document.</em>
+          </h2>
+        </div>
+        <div className="ways-grid">
+          <article className="way way-chat">
+            <p className="section-label">Chat</p>
+            <h3>Ask in your own words.</h3>
+            <p>
+              Write the question as you would say it. VerdictAI answers from
+              the Constitution and names the article.
+            </p>
+            <button type="button" className="button button-dark" onClick={openChat}>
+              Open chat <ArrowUpRight size={16} strokeWidth={1.5} />
+            </button>
+          </article>
+          <article className="way way-analyze">
+            <p className="section-label">Analyze</p>
+            <h3>Check a contract.</h3>
+            <p>
+              Copy the text from a PDF or TXT file and paste it in. Each clause
+              is read against the articles that may bear on it.
+            </p>
+            <a className="button button-line" href="/analyze">
+              Open analyzer <ArrowUpRight size={16} strokeWidth={1.5} />
+            </a>
+          </article>
+        </div>
+      </section>
+
       <section className="trust-section" aria-label="Trust and source">
-        <p className="section-label">03 / The source</p>
+        <p className="section-label">05 / The source</p>
         <blockquote>
           “Built on the official text
           <br />
@@ -169,7 +348,7 @@ function LandingPage() {
 
       <section className="chat-section" id="chat" aria-labelledby="chat-title">
         <div className="section-heading">
-          <p className="section-label">04 / A small example</p>
+          <p className="section-label">06 / A small example</p>
           <h2 id="chat-title">
             Questions deserve
             <br />
@@ -202,6 +381,28 @@ function LandingPage() {
         <button type="button" className="button button-outline" onClick={openChat}>
           Open the conversation <ArrowUpRight size={16} strokeWidth={1.5} />
         </button>
+      </section>
+
+      <section className="faq-section" aria-labelledby="faq-title">
+        <div className="section-heading">
+          <p className="section-label">07 / Before you ask</p>
+          <h2 id="faq-title">
+            A few
+            <br />
+            <em>plain answers.</em>
+          </h2>
+        </div>
+        <div className="faq-list">
+          {faqs.map(([question, answer]) => (
+            <details className="faq-item" key={question}>
+              <summary>
+                {question}
+                <span aria-hidden="true" />
+              </summary>
+              <p>{answer}</p>
+            </details>
+          ))}
+        </div>
       </section>
 
       <footer id="contact" className="site-footer">

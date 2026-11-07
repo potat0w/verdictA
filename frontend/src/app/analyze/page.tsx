@@ -41,18 +41,22 @@ export default function AnalyzePage() {
 }
 
 function Analyzer() {
-  const [file, setFile] = useState<File | null>(null);
+  const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<AnalysisReport | null>(null);
+  const pasted = text.trim();
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!file || loading) return;
+    if (!pasted || loading) return;
     setLoading(true);
     setError(null);
     try {
-      const result = await analyzeDocument(file);
+      const pastedFile = new File([pasted], "pasted.txt", {
+        type: "text/plain",
+      });
+      const result = await analyzeDocument(pastedFile);
       setReport(result);
     } catch (err) {
       setReport(null);
@@ -65,19 +69,21 @@ function Analyzer() {
   return (
     <div className="analyzer">
       <p>
-        Upload an English contract in PDF, DOCX, or TXT. Each clause is checked
-        against retrieved articles of the Constitution of Bangladesh. Phase 1
-        does not read scanned PDFs.
+        Copy the text from your PDF or TXT file and paste it below. File upload
+        is not available. Each clause is checked against retrieved articles of
+        the Constitution of Bangladesh.
       </p>
 
       <form className="analyze-form" onSubmit={onSubmit}>
-        <label className="analyze-file">
-          <span>Document</span>
-          <input
-            type="file"
-            accept=".pdf,.docx,.txt,application/pdf,text/plain"
+        <label className="analyze-text">
+          <span>Document text</span>
+          <textarea
+            value={text}
+            rows={12}
+            placeholder="Paste the text from your PDF or TXT file here."
+            aria-label="Pasted document text"
             onChange={(event) => {
-              setFile(event.target.files?.[0] ?? null);
+              setText(event.target.value);
               setError(null);
             }}
           />
@@ -85,9 +91,9 @@ function Analyzer() {
         <button
           className="analyze-submit"
           type="submit"
-          disabled={!file || loading}
+          disabled={!pasted || loading}
         >
-          {loading ? "Analyzing…" : "Analyze document"}
+          {loading ? "Analyzing…" : "Analyze text"}
         </button>
       </form>
 
