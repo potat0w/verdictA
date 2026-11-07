@@ -125,7 +125,6 @@ function LandingPage() {
           </button>
           <a href="/analyze">Analyze</a>
           <a href="#topics">Topics</a>
-          <a href="#about">About</a>
           <a href="#contact">Contact</a>
         </nav>
         <button type="button" className="nav-cta" onClick={() => openChat()}>
@@ -157,9 +156,6 @@ function LandingPage() {
           </a>
           <a href="#topics" onClick={() => setMobileOpen(false)}>
             Topics
-          </a>
-          <a href="#about" onClick={() => setMobileOpen(false)}>
-            About
           </a>
           <a href="#contact" onClick={() => setMobileOpen(false)}>
             Contact
@@ -220,25 +216,9 @@ function LandingPage() {
         ))}
       </section>
 
-      <section className="intro-band" id="about" aria-labelledby="intro-title">
-        <p className="section-label">01 / The approach</p>
-        <div>
-          <h2 id="intro-title">
-            Make the law
-            <br />
-            <em>legible.</em>
-          </h2>
-          <p className="intro-text">
-            VerdictAI brings the country&apos;s foundational text closer to
-            everyday life. No jargon, no guessing — just thoughtful answers tied
-            to the words that matter.
-          </p>
-        </div>
-      </section>
-
       <section className="steps-section" aria-labelledby="steps-title">
         <div className="section-heading">
-          <p className="section-label">02 / How it works</p>
+          <p className="section-label">01 / How it works</p>
           <h2 id="steps-title">
             Three steps
             <br />
@@ -261,7 +241,7 @@ function LandingPage() {
 
       <section className="topics-section" id="topics" aria-labelledby="topics-title">
         <div className="section-heading">
-          <p className="section-label">03 / What you can ask</p>
+          <p className="section-label">02 / What you can ask</p>
           <h2 id="topics-title">
             Start with
             <br />
@@ -292,7 +272,7 @@ function LandingPage() {
 
       <section className="ways-section" aria-labelledby="ways-title">
         <div className="section-heading">
-          <p className="section-label">04 / Two ways in</p>
+          <p className="section-label">03 / Two ways in</p>
           <h2 id="ways-title">
             A question,
             <br />
@@ -326,7 +306,7 @@ function LandingPage() {
       </section>
 
       <section className="trust-section" aria-label="Trust and source">
-        <p className="section-label">05 / The source</p>
+        <p className="section-label">04 / The source</p>
         <blockquote>
           “Built on the official text
           <br />
@@ -348,36 +328,50 @@ function LandingPage() {
 
       <section className="chat-section" id="chat" aria-labelledby="chat-title">
         <div className="section-heading">
-          <p className="section-label">06 / A small example</p>
+          <p className="section-label">05 / A small example</p>
           <h2 id="chat-title">
             Questions deserve
             <br />
             <em>good answers.</em>
           </h2>
         </div>
-        <div className="chat-paper">
-          <div className="chat-topline">
-            <span>VerdictAI / sample exchange</span>
-            <span>বাংলা + English</span>
-          </div>
-          <div className="question">
-            <span className="chat-label">You asked</span>
+        <article className="sample-answer">
+          <p className="sample-question">
+            “Assume that the agreement between Rahim and Karim was never
+            registered. Karim has paid Tk. 5,00,000 in advance but has not
+            deposited the remaining consideration in court. Can Karim still
+            obtain a decree for specific performance under Bangladeshi law?
+            Identify the exact statutory provision and explain the legal
+            requirements.”
+          </p>
+          <h3>Direct answer</h3>
+          <p>
+            Karim cannot obtain a decree for specific performance because the
+            statutory conditions for enforcing a contract for the sale of
+            immovable property have not been satisfied.
+          </p>
+          <div className="sample-law">
+            <h3>What the law says</h3>
             <p>
-              “What does the Constitution say about equality before the law?”
+              <strong>Section 7 of the Specific Relief Act, 1877</strong>{" "}
+              provides that “no contract for sale of any immovable property can
+              be specifically enforced unless – (a) the contract is in writing
+              and <strong>registered</strong> under the Registration Act, 1908,
+              whether or not the transferee has taken possession of the
+              property or any part thereof; and (b) the balance amount of
+              consideration of the contract is{" "}
+              <strong>deposited in the court</strong> at the time of filing the
+              suit for specific performance of the contract.”
             </p>
-          </div>
-          <div className="answer">
-            <span className="chat-label">VerdictAI</span>
             <p>
-              Article 27 establishes that all citizens are equal before law and
-              are entitled to equal protection of law.
-            </p>
-            <p className="citation">
-              Constitution of Bangladesh / Article 27{" "}
-              <ArrowUpRight size={14} />
+              <strong>Section 24 of the Specific Relief Act, 1877</strong>{" "}
+              further bars specific performance “in favour of a person … who
+              has become incapable of performing, or violates, any essential
+              term of the contract … or who has <strong>not deposited</strong>{" "}
+              the balance consideration as required by Section 7.”
             </p>
           </div>
-        </div>
+        </article>
         <button type="button" className="button button-outline" onClick={() => openChat()}>
           Open the conversation <ArrowUpRight size={16} strokeWidth={1.5} />
         </button>
@@ -385,7 +379,7 @@ function LandingPage() {
 
       <section className="faq-section" aria-labelledby="faq-title">
         <div className="section-heading">
-          <p className="section-label">07 / Before you ask</p>
+          <p className="section-label">06 / Before you ask</p>
           <h2 id="faq-title">
             A few
             <br />
@@ -418,7 +412,6 @@ function LandingPage() {
               Chat
             </button>
             <a href="/analyze">Analyze</a>
-            <a href="#about">About</a>
             <a href="mailto:hello@verdictai.bd">hello@verdictai.bd</a>
           </div>
         </div>

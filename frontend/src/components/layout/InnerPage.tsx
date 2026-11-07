@@ -25,7 +25,6 @@ export default function InnerPage({
             Chat
           </button>
           <Link href="/analyze">Analyze</Link>
-          <Link href="/#about">About</Link>
           <Link href="/contact">Contact</Link>
         </nav>
         <button type="button" className="nav-cta" onClick={() => openChat()}>
@@ -49,7 +48,6 @@ export default function InnerPage({
               Chat
             </button>
             <Link href="/analyze">Analyze</Link>
-            <Link href="/#about">About</Link>
             <a href="mailto:hello@verdictai.bd">hello@verdictai.bd</a>
           </div>
         </div>

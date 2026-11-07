@@ -159,11 +159,11 @@ video {
 
 .hero {
   position: relative;
-  min-height: min(730px, calc(100svh - 76px));
-  min-height: min(730px, calc(100dvh - 76px));
+  min-height: min(560px, calc(100svh - 76px));
+  min-height: min(560px, calc(100dvh - 76px));
   display: flex;
   align-items: center;
-  padding: 80px clamp(24px, 12vw, 180px);
+  padding: 48px clamp(24px, 8vw, 120px);
   isolation: isolate;
 }
 
@@ -189,15 +189,14 @@ video {
 }
 
 .eyebrow,
-.section-label,
-.chat-label {
+.section-label {
   font-size: 10px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
 }
 
 .eyebrow {
-  margin-bottom: 30px;
+  margin-bottom: 16px;
   color: #d6d4ca;
 }
 
@@ -212,8 +211,8 @@ video {
 }
 
 .site-shell h1 {
-  font-size: clamp(56px, 8.2vw, 112px);
-  line-height: 0.94;
+  font-size: clamp(36px, 4.6vw, 60px);
+  line-height: 1.02;
 }
 
 .site-shell h1 em,
@@ -224,10 +223,10 @@ video {
 
 .hero-intro {
   max-width: 390px;
-  margin: 31px 0 35px;
+  margin: 16px 0 22px;
   color: #e2dfd5;
-  font-size: 15px;
-  line-height: 1.7;
+  font-size: 14px;
+  line-height: 1.65;
 }
 
 .button {
@@ -336,7 +335,7 @@ video {
 }
 
 .fact {
-  padding: 28px clamp(18px, 2.4vw, 36px) 32px;
+  padding: 18px clamp(16px, 2vw, 28px) 20px;
   border-right: 1px solid var(--line);
 }
 
@@ -346,9 +345,9 @@ video {
 
 .fact strong {
   display: block;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   font-family: var(--font-playfair), "Playfair Display", serif;
-  font-size: 32px;
+  font-size: 22px;
   font-weight: 400;
   letter-spacing: -0.04em;
 }
@@ -382,14 +381,13 @@ video {
   text-transform: uppercase;
 }
 
-.intro-band,
 .steps-section,
 .topics-section,
 .ways-section,
 .trust-section,
 .chat-section,
 .faq-section {
-  padding: clamp(100px, 13vw, 190px) clamp(24px, 12vw, 180px);
+  padding: clamp(40px, 4.5vw, 64px) clamp(24px, 8vw, 120px);
 }
 
 .topics-section,
@@ -398,39 +396,25 @@ video {
   border-top: 1px solid var(--line);
   display: grid;
   grid-template-columns: 1fr 2fr;
-  gap: 8vw;
+  gap: clamp(28px, 3vw, 48px);
   align-items: start;
 }
 
-.intro-band {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 8vw;
-}
-
 .section-label {
-  margin: 5px 0 0;
+  margin: 0 0 8px;
   color: var(--muted);
 }
 
 .site-shell h2 {
-  font-size: clamp(48px, 6.4vw, 88px);
-  line-height: 0.98;
-}
-
-.intro-text {
-  max-width: 425px;
-  margin: 42px 0 0;
-  color: var(--muted);
-  font-size: 15px;
-  line-height: 1.85;
+  font-size: clamp(28px, 3vw, 40px);
+  line-height: 1.08;
 }
 
 .steps-section {
   border-top: 1px solid var(--line);
   display: grid;
   grid-template-columns: 1fr 2fr;
-  gap: 8vw;
+  gap: clamp(28px, 3vw, 48px);
 }
 
 .steps-list {
@@ -440,8 +424,8 @@ video {
 .step {
   display: grid;
   grid-template-columns: 60px 1fr 24px;
-  gap: 24px;
-  padding: 30px 0;
+  gap: 16px;
+  padding: 18px 0;
   border-bottom: 1px solid var(--line);
   align-items: start;
 }
@@ -453,9 +437,9 @@ video {
 }
 
 .step h3 {
-  margin: 0 0 11px;
+  margin: 0 0 8px;
   font-family: var(--font-playfair), "Playfair Display", serif;
-  font-size: 26px;
+  font-size: 20px;
   font-weight: 400;
 }
 
@@ -482,8 +466,8 @@ video {
   flex-direction: column;
   align-items: flex-start;
   gap: 12px;
-  min-height: 210px;
-  padding: 26px 22px 22px;
+  min-height: 168px;
+  padding: 18px 18px 16px;
   border: 0;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
@@ -520,9 +504,9 @@ video {
 }
 
 .topic-card h3 {
-  margin: 8px 0 0;
+  margin: 4px 0 0;
   font-family: var(--font-playfair), "Playfair Display", serif;
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 400;
   letter-spacing: -0.04em;
 }
@@ -553,20 +537,20 @@ video {
 .ways-grid {
   display: grid;
   grid-template-columns: 1.15fr 0.85fr;
-  min-height: 420px;
+  min-height: 280px;
 }
 
 .way {
   display: flex;
   flex-direction: column;
-  min-height: 420px;
-  padding: 36px 32px 32px;
+  min-height: 280px;
+  padding: 24px 24px 22px;
 }
 
 .way h3 {
-  margin: 0 0 16px;
+  margin: 0 0 10px;
   font-family: var(--font-playfair), "Playfair Display", serif;
-  font-size: clamp(28px, 2.2vw, 40px);
+  font-size: clamp(20px, 1.6vw, 26px);
   font-weight: 400;
   letter-spacing: -0.045em;
   line-height: 1.05;
@@ -580,7 +564,7 @@ video {
 }
 
 .way .section-label {
-  margin-bottom: 22px;
+  margin-bottom: 12px;
 }
 
 .way .button {
@@ -619,11 +603,11 @@ video {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 22px 0;
+  padding: 14px 0;
   cursor: pointer;
   list-style: none;
   font-family: var(--font-playfair), "Playfair Display", serif;
-  font-size: clamp(20px, 2vw, 26px);
+  font-size: clamp(16px, 1.4vw, 18px);
   letter-spacing: -0.03em;
 }
 
@@ -671,10 +655,10 @@ video {
 }
 
 .trust-section blockquote {
-  max-width: 820px;
-  margin: 55px 0 75px;
-  font-size: clamp(42px, 6vw, 83px);
-  line-height: 1.05;
+  max-width: 720px;
+  margin: 20px 0 28px;
+  font-size: clamp(24px, 2.6vw, 36px);
+  line-height: 1.15;
 }
 
 .trust-meta {
@@ -700,72 +684,57 @@ video {
 .chat-section {
   display: grid;
   grid-template-columns: 1fr 1.35fr;
-  gap: 8vw;
+  gap: clamp(28px, 3vw, 48px);
   align-items: start;
 }
 
-.chat-paper {
-  background: #eeebe3;
-  padding: 24px clamp(24px, 4vw, 60px) 50px;
-  border-top: 1px solid var(--ink);
+.sample-answer h3 {
+  margin: 0 0 8px;
+  font-family: var(--font-dm-sans), "DM Sans", sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
 }
 
-.chat-topline {
-  display: flex;
-  justify-content: space-between;
-  padding-bottom: 55px;
-  color: var(--muted);
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.sample-answer > .sample-question {
+  margin: 0 0 36px;
+  padding: 22px 24px;
+  border-radius: 22px;
+  background: #2c2d28;
+  color: #f7f4ee;
+  font-size: 15px;
+  line-height: 1.55;
 }
 
-.question {
-  padding-bottom: 30px;
-  border-bottom: 1px solid var(--line);
-}
-
-.answer {
-  padding-top: 30px;
-}
-
-.chat-label {
-  display: block;
-  margin-bottom: 17px;
-  color: var(--accent);
-}
-
-.question p,
-.answer p {
-  max-width: 550px;
+.sample-answer > p:not(.sample-question),
+.sample-law p {
   margin: 0;
-  font-family: var(--font-playfair), "Playfair Display", serif;
-  font-size: clamp(21px, 2.2vw, 30px);
-  line-height: 1.25;
+  color: #3c3c36;
+  font-size: 15px;
+  line-height: 1.7;
 }
 
-.answer p {
-  font-size: clamp(18px, 1.8vw, 24px);
+.sample-law {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
 }
 
-.citation {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 28px !important;
-  color: var(--accent);
-  font-family: var(--font-dm-sans), "DM Sans", sans-serif !important;
-  font-size: 10px !important;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+.sample-law p + p {
+  margin-top: 16px;
+}
+
+.sample-law strong {
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .button-outline {
   grid-column: 2;
   justify-self: start;
   border: 1px solid var(--ink);
-  margin-top: -42px;
-  transform: translateY(100%);
+  margin-top: 32px;
   background: transparent;
   color: var(--ink);
 }
@@ -1749,17 +1718,26 @@ video {
   }
   .hero {
     min-height: 0;
-    padding: 36px 20px 32px;
+    padding: 28px 20px 24px;
     align-items: flex-start;
   }
   .site-shell h1 {
-    font-size: clamp(42px, 12vw, 64px);
-    line-height: 1.02;
+    font-size: clamp(30px, 8.5vw, 40px);
+    line-height: 1.08;
   }
   .hero-intro {
-    max-width: none;
-    margin: 22px 0 28px;
-    font-size: 14px;
+    display: none;
+  }
+  .hero .button {
+    gap: 8px;
+    margin-top: 16px;
+    padding: 8px 11px;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+  }
+  .hero .button svg {
+    width: 12px;
+    height: 12px;
   }
   .eyebrow {
     margin-bottom: 18px;
@@ -1770,14 +1748,13 @@ video {
   .hero-note {
     display: none;
   }
-  .intro-band,
   .steps-section,
   .topics-section,
   .ways-section,
   .chat-section,
   .faq-section {
     display: block;
-    padding: 72px 20px;
+    padding: 36px 20px;
   }
   .hero-points {
     display: none;
@@ -1804,24 +1781,20 @@ video {
     padding: 28px 22px;
   }
   .faq-item summary {
-    font-size: 20px;
+    font-size: 16px;
   }
   .section-label {
-    margin-bottom: 28px;
+    margin-bottom: 10px;
   }
   .site-shell h2 {
-    font-size: clamp(34px, 10vw, 52px);
-    line-height: 1.05;
-  }
-  .intro-text {
-    margin-top: 24px;
-    max-width: none;
+    font-size: clamp(24px, 7vw, 32px);
+    line-height: 1.12;
   }
   .steps-section .section-heading,
   .topics-section .section-heading,
   .ways-section .section-heading,
   .faq-section .section-heading {
-    margin-bottom: 36px;
+    margin-bottom: 18px;
   }
   .step {
     grid-template-columns: 36px 1fr 18px;
@@ -1829,14 +1802,14 @@ video {
     padding: 22px 0;
   }
   .step h3 {
-    font-size: 22px;
+    font-size: 18px;
   }
   .trust-section {
-    padding: 72px 20px;
+    padding: 36px 20px;
   }
   .trust-section blockquote {
-    margin: 28px 0 40px;
-    font-size: clamp(28px, 8vw, 42px);
+    margin: 14px 0 20px;
+    font-size: clamp(22px, 6vw, 28px);
   }
   .trust-meta {
     display: block;
@@ -1847,7 +1820,7 @@ video {
     text-align: left;
   }
   .chat-section .section-heading {
-    margin-bottom: 36px;
+    margin-bottom: 18px;
   }
   .button-outline {
     grid-column: auto;
@@ -1962,9 +1935,8 @@ video {
 
 @media (min-width: 701px) and (max-width: 1024px) {
   .hero {
-    padding: 72px clamp(28px, 6vw, 64px);
+    padding: 40px clamp(28px, 6vw, 64px);
   }
-  .intro-band,
   .steps-section,
   .topics-section,
   .ways-section,
