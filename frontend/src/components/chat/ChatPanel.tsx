@@ -68,6 +68,9 @@ export default function ChatPanel({
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const stickToBottom = useRef(true);
+  const ignoreScrollUntil = useRef(0);
+  const [closing, setClosing] = useState(false);
 
   useEffect(() => {
     const html = document.documentElement;
@@ -139,14 +142,38 @@ export default function ChatPanel({
   );
 
   useEffect(() => {
-    if (!historyReady || !activeSessionId || messages.length === 0) return;
+    if (!historyReady || !activeSessionId || messages.length === 0 || streamingId) {
+      return;
+    }
     persistSession(activeSessionId, messages);
-  }, [messages, activeSessionId, historyReady, persistSession]);
+  }, [messages, activeSessionId, historyReady, persistSession, streamingId]);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    const onScroll = () => {
+      if (performance.now() < ignoreScrollUntil.current) return;
+      const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+      stickToBottom.current = distance < 96;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !stickToBottom.current) return;
+    const frame = requestAnimationFrame(() => {
+      const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+      const instant = Boolean(streamingId) || distance > 640;
+      ignoreScrollUntil.current = performance.now() + (instant ? 80 : 420);
+      if (instant) {
+        el.scrollTop = el.scrollHeight;
+        return;
+      }
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
   }, [messages, isLoading, streamingId]);
 
   useEffect(() => {
@@ -178,6 +205,7 @@ export default function ChatPanel({
   };
 
   const openSession = (session: ChatSession) => {
+    stickToBottom.current = true;
     setActiveSessionIdState(session.id);
     setActiveSessionId(session.id);
     setMessages(fromStored(session.messages));
@@ -225,6 +253,7 @@ export default function ChatPanel({
       timestamp: new Date(),
     };
 
+    stickToBottom.current = true;
     const nextMessages = [...messages, userMessage];
     setMessages(nextMessages);
     persistSession(sessionId, nextMessages);
@@ -259,15 +288,20 @@ export default function ChatPanel({
 
       const chunks = full.split(/(\s+)/);
       let acc = "";
-      for (const chunk of chunks) {
-        acc += chunk;
+      let index = 0;
+      while (index < chunks.length) {
+        const step = chunks[index]?.trim() ? 2 : 1;
+        acc += chunks.slice(index, index + step).join("");
+        index += step;
         const snapshot = acc;
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId ? { ...m, content: snapshot } : m
           )
         );
-        await new Promise((r) => setTimeout(r, chunk.trim() ? 18 : 0));
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => resolve());
+        });
       }
 
       setStreamingId(null);
@@ -299,6 +333,17 @@ export default function ChatPanel({
     }
   };
 
+  const requestClose = () => {
+    if (closing) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      onClose();
+      return;
+    }
+    setClosing(true);
+    window.setTimeout(onClose, 240);
+  };
+
   const isEmpty = messages.length === 0;
   const bnSuggestions = QUICK_SUGGESTIONS.filter((s) =>
     /[\u0980-\u09FF]/.test(s)
@@ -310,7 +355,7 @@ export default function ChatPanel({
     language === "bn" ? bnSuggestions : enSuggestions;
 
   return (
-    <div className="chat-overlay">
+    <div className={`chat-overlay${closing ? " is-closing" : ""}`}>
       <main className={`chat-app${dark ? " is-dark" : ""}`}>
         {sidebarOpen && (
           <button
@@ -374,7 +419,7 @@ export default function ChatPanel({
                 <span />
               </span>
             </button>
-            <button type="button" className="sidebar-link" onClick={onClose}>
+            <button type="button" className="sidebar-link" onClick={requestClose}>
               Back to site
             </button>
             <span className="sidebar-version">
@@ -405,7 +450,7 @@ export default function ChatPanel({
               <button
                 className="icon-button"
                 type="button"
-                onClick={onClose}
+                onClick={requestClose}
                 aria-label="Close chat"
               >
                 <X />

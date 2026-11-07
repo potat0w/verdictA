@@ -21,14 +21,14 @@ export default function InnerPage({
           verdict<span>ai</span>
         </Link>
         <nav className="desktop-nav" aria-label="Primary">
-          <button type="button" onClick={openChat}>
+          <button type="button" onClick={() => openChat()}>
             Chat
           </button>
           <Link href="/analyze">Analyze</Link>
           <Link href="/#about">About</Link>
           <Link href="/contact">Contact</Link>
         </nav>
-        <button type="button" className="nav-cta" onClick={openChat}>
+        <button type="button" className="nav-cta" onClick={() => openChat()}>
           Open chat
         </button>
       </header>
@@ -45,7 +45,7 @@ export default function InnerPage({
             <p>Constitutional clarity, in two languages.</p>
           </div>
           <div className="footer-links">
-            <button type="button" onClick={openChat}>
+            <button type="button" onClick={() => openChat()}>
               Chat
             </button>
             <Link href="/analyze">Analyze</Link>

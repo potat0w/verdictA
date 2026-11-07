@@ -93,7 +93,7 @@ export default function HeroSection() {
 
             <div className="flex justify-center lg:justify-start">
               <Button
-                onClick={openChat}
+                onClick={() => openChat()}
                 size="lg"
                 className="w-full gap-2 sm:w-auto"
               >
@@ -114,7 +114,7 @@ export default function HeroSection() {
 
             <button
               type="button"
-              onClick={openChat}
+              onClick={() => openChat()}
               className="group relative block w-full overflow-hidden rounded-2xl border border-[var(--page-border)] bg-[var(--page-card)] text-left shadow-xl backdrop-blur-md transition hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
             >
               <div className="flex items-center gap-3 border-b border-[var(--page-border)] px-5 py-3.5">

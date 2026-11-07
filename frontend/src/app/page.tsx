@@ -120,7 +120,7 @@ function LandingPage() {
           verdict<span>ai</span>
         </a>
         <nav className="desktop-nav" aria-label="Primary">
-          <button type="button" onClick={openChat}>
+          <button type="button" onClick={() => openChat()}>
             Chat
           </button>
           <a href="/analyze">Analyze</a>
@@ -128,7 +128,7 @@ function LandingPage() {
           <a href="#about">About</a>
           <a href="#contact">Contact</a>
         </nav>
-        <button type="button" className="nav-cta" onClick={openChat}>
+        <button type="button" className="nav-cta" onClick={() => openChat()}>
           Open chat <ArrowUpRight size={14} strokeWidth={1.5} />
         </button>
         <button
@@ -186,7 +186,7 @@ function LandingPage() {
             A calm, careful way to understand the Constitution of Bangladesh —
             in Bangla or English.
           </p>
-          <button type="button" className="button button-dark" onClick={openChat}>
+          <button type="button" className="button button-dark" onClick={() => openChat()}>
             Ask a question <ArrowUpRight size={16} strokeWidth={1.5} />
           </button>
           <ul className="hero-points">
@@ -307,7 +307,7 @@ function LandingPage() {
               Write the question as you would say it. VerdictAI answers from
               the Constitution and names the article.
             </p>
-            <button type="button" className="button button-dark" onClick={openChat}>
+            <button type="button" className="button button-dark" onClick={() => openChat()}>
               Open chat <ArrowUpRight size={16} strokeWidth={1.5} />
             </button>
           </article>
@@ -378,7 +378,7 @@ function LandingPage() {
             </p>
           </div>
         </div>
-        <button type="button" className="button button-outline" onClick={openChat}>
+        <button type="button" className="button button-outline" onClick={() => openChat()}>
           Open the conversation <ArrowUpRight size={16} strokeWidth={1.5} />
         </button>
       </section>
@@ -414,7 +414,7 @@ function LandingPage() {
             <p>Constitutional clarity, in two languages.</p>
           </div>
           <div className="footer-links">
-            <button type="button" onClick={openChat}>
+            <button type="button" onClick={() => openChat()}>
               Chat
             </button>
             <a href="/analyze">Analyze</a>
