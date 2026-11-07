@@ -1750,7 +1750,7 @@ video {
   .hero {
     min-height: calc(100svh - 60px);
     min-height: calc(100dvh - 60px);
-    padding: 48px 20px 0;
+    padding: 48px 20px 56px;
     align-items: flex-end;
   }
   .site-shell h1 {
@@ -1781,19 +1781,7 @@ video {
     padding: 72px 20px;
   }
   .hero-points {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 9px;
-    margin: 0 -20px;
-    padding: 18px 20px 16px;
-    background: var(--paper);
-    color: var(--muted);
-  }
-  .hero-points li {
-    white-space: nowrap;
-  }
-  .hero-points li::before {
-    background: var(--accent);
+    display: none;
   }
   .facts-band {
     grid-template-columns: 1fr 1fr;
