@@ -1748,10 +1748,9 @@ video {
     }
   }
   .hero {
-    min-height: calc(100svh - 60px);
-    min-height: calc(100dvh - 60px);
-    padding: 48px 20px 56px;
-    align-items: flex-end;
+    min-height: 0;
+    padding: 36px 20px 32px;
+    align-items: flex-start;
   }
   .site-shell h1 {
     font-size: clamp(42px, 12vw, 64px);
