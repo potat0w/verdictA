@@ -1,0 +1,1836 @@
+{
+  "gold": "/home/chisty/advanced-new-projects/verdictA-main/backend/gold_eval.txt",
+  "cases": 26,
+  "passed": 20,
+  "macro_recall": 0.8846153846153846,
+  "micro_recall": 0.7916666666666666,
+  "stage_micro_recall": {
+    "fuse": 0.9166666666666666,
+    "llm_context": 0.7916666666666666
+  },
+  "leak_class_counts": {
+    "mixed_ranker_and_topk": 2,
+    "ranker_miss": 1,
+    "ok": 20,
+    "topk_truncation": 3
+  },
+  "results": [
+    {
+      "case_id": "1-land-tax-extra-money-demand-en",
+      "title": "1. Land Tax / Extra Money Demand",
+      "language": "en",
+      "query": "Rahim owns a piece of land. He has already paid the legally required land development tax. However, a land office official demands additional money without providing any official receipt. When Rahim refuses, the official delays his work. Which constitutional provisions may be relevant?",
+      "expected": [
+        "21",
+        "31",
+        "27"
+      ],
+      "fuse": {
+        "keys": [
+          "83",
+          "42",
+          "31",
+          "35",
+          "47",
+          "43",
+          "60",
+          "81",
+          "92A",
+          "102",
+          "21",
+          "147",
+          "152",
+          "20",
+          "86",
+          "32",
+          "148",
+          "34"
+        ],
+        "hits": [
+          "21",
+          "31"
+        ],
+        "misses": [
+          "27"
+        ],
+        "recall": 0.6666666666666666
+      },
+      "llm_context": {
+        "keys": [
+          "83",
+          "42",
+          "31",
+          "35",
+          "47",
+          "43",
+          "60",
+          "81"
+        ],
+        "hits": [
+          "31"
+        ],
+        "misses": [
+          "21",
+          "27"
+        ],
+        "recall": 0.3333333333333333
+      },
+      "miss_at_fuse": [
+        "27"
+      ],
+      "dropped_by_topk": [
+        "21"
+      ],
+      "leak_class": "mixed_ranker_and_topk",
+      "context_size": 12,
+      "statute_refs": [
+        "86",
+        "2",
+        "78",
+        "The State Acquisition and Tenancy Act, 1950 (Eas"
+      ],
+      "ms": 9833,
+      "ok": false,
+      "error": ""
+    },
+    {
+      "case_id": "1-land-tax-extra-money-demand-bn",
+      "title": "1. Land Tax / Extra Money Demand",
+      "language": "bn",
+      "query": "রহিমের একটি জমি আছে। তিনি নির্ধারিত ভূমি উন্নয়ন কর পরিশোধ করেছেন। কিন্তু ভূমি অফিসের একজন কর্মকর্তা কোনো সরকারি রসিদ ছাড়াই অতিরিক্ত টাকা দাবি করেন। রহিম টাকা দিতে অস্বীকার করলে কর্মকর্তা তার কাজ আটকে রাখেন। এ ক্ষেত্রে সংবিধানের কোন অনুচ্ছেদ প্রাসঙ্গিক হতে পারে?",
+      "expected": [
+        "21",
+        "31",
+        "27"
+      ],
+      "fuse": {
+        "keys": [
+          "83",
+          "31",
+          "135",
+          "32",
+          "42",
+          "147",
+          "116A",
+          "86",
+          "20",
+          "144",
+          "102",
+          "152",
+          "134",
+          "85",
+          "40",
+          "91",
+          "35",
+          "136",
+          "117"
+        ],
+        "hits": [
+          "31"
+        ],
+        "misses": [
+          "21",
+          "27"
+        ],
+        "recall": 0.3333333333333333
+      },
+      "llm_context": {
+        "keys": [
+          "83",
+          "31",
+          "135",
+          "32",
+          "42",
+          "147",
+          "116A",
+          "86"
+        ],
+        "hits": [
+          "31"
+        ],
+        "misses": [
+          "21",
+          "27"
+        ],
+        "recall": 0.3333333333333333
+      },
+      "miss_at_fuse": [
+        "21",
+        "27"
+      ],
+      "dropped_by_topk": [],
+      "leak_class": "ranker_miss",
+      "context_size": 12,
+      "statute_refs": [
+        "তথ্য অধিকার আইন, ২০০৯",
+        "পাবলিক প্রকিউরমেন্ট আইন, ২০০৬",
+        "6",
+        "বাংলাদেশ শ্রম আইন, ২০০৬"
+      ],
+      "ms": 4399,
+      "ok": false,
+      "error": ""
+    },
+    {
+      "case_id": "2-police-arrest-without-reason-en",
+      "title": "2. Police Arrest Without Reason",
+      "language": "en",
+      "query": "Police arrest Karim from his home but do not inform him why he has been arrested. They also refuse to let him consult a lawyer. Which constitutional rights may have been violated?",
+      "expected": [
+        "33"
+      ],
+      "fuse": {
+        "keys": [
+          "33",
+          "32",
+          "35",
+          "43",
+          "31",
+          "37",
+          "102",
+          "51",
+          "27",
+          "22",
+          "39",
+          "34",
+          "116A",
+          "141C",
+          "47",
+          "49",
+          "112",
+          "135"
+        ],
+        "hits": [
+          "33"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "33",
+          "32",
+          "35",
+          "43",
+          "31",
+          "37",
+          "102"
+        ],
+        "hits": [
+          "33"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "50",
+        "12",
+        "60",
+        "80"
+      ],
+      "ms": 4713,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "2-police-arrest-without-reason-bn",
+      "title": "2. Police Arrest Without Reason",
+      "language": "bn",
+      "query": "পুলিশ করিমকে তার বাসা থেকে গ্রেপ্তার করে, কিন্তু কেন গ্রেপ্তার করা হয়েছে তা জানায় না। এমনকি তাকে আইনজীবীর সঙ্গে কথা বলতেও দেওয়া হয় না। এতে কোন সাংবিধানিক অধিকার লঙ্ঘিত হতে পারে?",
+      "expected": [
+        "33"
+      ],
+      "fuse": {
+        "keys": [
+          "33",
+          "43",
+          "31",
+          "35",
+          "32",
+          "47A",
+          "36",
+          "27",
+          "37",
+          "102",
+          "38",
+          "39",
+          "116A",
+          "51",
+          "42",
+          "83",
+          "40"
+        ],
+        "hits": [
+          "33"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "33",
+          "43",
+          "31",
+          "35",
+          "32",
+          "47A",
+          "36"
+        ],
+        "hits": [
+          "33"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "19",
+        "সিলেট মহানগরী পুলিশ আইন, ২০০৯",
+        "56",
+        "রাজশাহী মহানগরী পুলিশ আইন, ১৯৯২"
+      ],
+      "ms": 3381,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "3-government-job-discrimination-en",
+      "title": "3. Government Job Discrimination",
+      "language": "en",
+      "query": "A qualified citizen applies for a government job. Despite meeting all requirements, the authority rejects the application only because of the applicant's place of birth. Is this constitutional?",
+      "expected": [
+        "29"
+      ],
+      "fuse": {
+        "keys": [
+          "29",
+          "28",
+          "19",
+          "40",
+          "36",
+          "20",
+          "47",
+          "27",
+          "135",
+          "134",
+          "121",
+          "11",
+          "136",
+          "34",
+          "21",
+          "116A",
+          "15",
+          "38"
+        ],
+        "hits": [
+          "29"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "29",
+          "28",
+          "19",
+          "40",
+          "36",
+          "20",
+          "47",
+          "27"
+        ],
+        "hits": [
+          "29"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "3",
+        "10",
+        "7",
+        "4"
+      ],
+      "ms": 5732,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "3-government-job-discrimination-bn",
+      "title": "3. Government Job Discrimination",
+      "language": "bn",
+      "query": "একজন যোগ্য নাগরিক সরকারি চাকরির জন্য আবেদন করেন। সব যোগ্যতা থাকা সত্ত্বেও কর্তৃপক্ষ শুধু তার জন্মস্থানের কারণে আবেদন বাতিল করে। এটি কি সাংবিধানিক?",
+      "expected": [
+        "29"
+      ],
+      "fuse": {
+        "keys": [
+          "29",
+          "40",
+          "36",
+          "28",
+          "47",
+          "31",
+          "135",
+          "136",
+          "38",
+          "47A",
+          "7",
+          "27",
+          "152",
+          "15",
+          "95",
+          "20",
+          "99",
+          "133",
+          "32",
+          "116A"
+        ],
+        "hits": [
+          "29"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "29",
+          "40",
+          "36",
+          "28",
+          "47",
+          "31",
+          "135",
+          "136"
+        ],
+        "hits": [
+          "29"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "7",
+        "ক্যাডার বহির্ভূত প্রথম ও দ্বিতীয় শ্রেণীর গেজেটেড",
+        "17",
+        "38"
+      ],
+      "ms": 2972,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "4-religious-discrimination-in-education-en",
+      "title": "4. Religious Discrimination in Education",
+      "language": "en",
+      "query": "A student is denied admission to a public educational institution only because of their religion. The institution provides no other valid reason for rejection. Which constitutional provision applies?",
+      "expected": [
+        "28"
+      ],
+      "fuse": {
+        "keys": [
+          "41",
+          "2A",
+          "12",
+          "28",
+          "27",
+          "29",
+          "32",
+          "47A",
+          "23A",
+          "47",
+          "17",
+          "38",
+          "102",
+          "8",
+          "31",
+          "121",
+          "39",
+          "7",
+          "26",
+          "11"
+        ],
+        "hits": [
+          "28"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "41",
+          "2A",
+          "12",
+          "28",
+          "27",
+          "29",
+          "32",
+          "47A"
+        ],
+        "hits": [
+          "28"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "8",
+        "7",
+        "6"
+      ],
+      "ms": 2973,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "4-religious-discrimination-in-education-bn",
+      "title": "4. Religious Discrimination in Education",
+      "language": "bn",
+      "query": "একজন শিক্ষার্থীকে শুধু তার ধর্মের কারণে একটি সরকারি শিক্ষাপ্রতিষ্ঠানে ভর্তি হতে দেওয়া হয় না। প্রতিষ্ঠানটি অন্য কোনো বৈধ কারণও দেখাতে পারে না। কোন সাংবিধানিক অনুচ্ছেদ এখানে প্রযোজ্য?",
+      "expected": [
+        "28"
+      ],
+      "fuse": {
+        "keys": [
+          "41",
+          "28",
+          "29",
+          "12",
+          "2A",
+          "38",
+          "40",
+          "27",
+          "32",
+          "47A",
+          "17",
+          "8",
+          "31",
+          "92A",
+          "135",
+          "102",
+          "43",
+          "26",
+          "39"
+        ],
+        "hits": [
+          "28"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "41",
+          "28",
+          "29",
+          "12",
+          "2A",
+          "38",
+          "40",
+          "27"
+        ],
+        "hits": [
+          "28"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "33",
+        "জগন্নাথ বিশ্ববিদ্যালয় আইন, ২০০৫",
+        "কুমিল্লা বিশ্ববিদ্যালয় আইন, ২০০৬",
+        "জাতীয় কবি কাজী নজরুল ইসলাম বিশ্ববিদ্যালয় আইন, ২০"
+      ],
+      "ms": 2759,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "5-freedom-of-speech-en",
+      "title": "5. Freedom of Speech",
+      "language": "en",
+      "query": "A journalist publishes an article criticizing a government policy. A government authority threatens to shut down the newspaper simply because it disagrees with the journalist's opinion. Which constitutional right is relevant?",
+      "expected": [
+        "39"
+      ],
+      "fuse": {
+        "keys": [
+          "39",
+          "37",
+          "43",
+          "32",
+          "38",
+          "41",
+          "22",
+          "78",
+          "40",
+          "116A",
+          "31",
+          "27",
+          "11",
+          "63",
+          "12",
+          "47",
+          "83",
+          "36",
+          "23"
+        ],
+        "hits": [
+          "39"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "39",
+          "37",
+          "43",
+          "32",
+          "38",
+          "41",
+          "22",
+          "78"
+        ],
+        "hits": [
+          "39"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "108",
+        "5",
+        "12",
+        "21"
+      ],
+      "ms": 5119,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "5-freedom-of-speech-bn",
+      "title": "5. Freedom of Speech",
+      "language": "bn",
+      "query": "একজন সাংবাদিক সরকারের একটি নীতির সমালোচনা করে সংবাদ প্রকাশ করেন। তার মতামতের সঙ্গে একমত না হওয়ায় একজন সরকারি কর্মকর্তা পত্রিকাটি বন্ধ করে দেওয়ার হুমকি দেন। এখানে কোন সাংবিধানিক অধিকার প্রাসঙ্গিক?",
+      "expected": [
+        "39"
+      ],
+      "fuse": {
+        "keys": [
+          "39",
+          "37",
+          "43",
+          "116A",
+          "38",
+          "40",
+          "31",
+          "32",
+          "36",
+          "102",
+          "41",
+          "152",
+          "135",
+          "83",
+          "27",
+          "47",
+          "78",
+          "7",
+          "105"
+        ],
+        "hits": [
+          "39"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "39",
+          "37",
+          "43",
+          "116A",
+          "38",
+          "40",
+          "31",
+          "32"
+        ],
+        "hits": [
+          "39"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "94",
+        "87",
+        "5",
+        "কেবল টেলিভিশন নেটওয়ার্ক পরিচালনা আইন, ২০০৬"
+      ],
+      "ms": 2766,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "6-forced-labour-en",
+      "title": "6. Forced Labour",
+      "language": "en",
+      "query": "A factory owner forces several workers to work without payment and threatens them if they refuse. The workers are not performing any legally required compulsory public service. Which constitutional provision protects them?",
+      "expected": [
+        "34"
+      ],
+      "fuse": {
+        "keys": [
+          "34",
+          "32",
+          "20",
+          "14",
+          "15",
+          "40",
+          "27",
+          "37",
+          "47",
+          "134",
+          "10",
+          "35",
+          "116A",
+          "29",
+          "102",
+          "31",
+          "28",
+          "83",
+          "38"
+        ],
+        "hits": [
+          "34"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "34",
+          "32",
+          "20",
+          "14",
+          "15",
+          "40",
+          "27",
+          "37"
+        ],
+        "hits": [
+          "34"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "374",
+        "12",
+        "210",
+        "2"
+      ],
+      "ms": 2763,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "6-forced-labour-bn",
+      "title": "6. Forced Labour",
+      "language": "bn",
+      "query": "একজন কারখানার মালিক কয়েকজন শ্রমিককে কোনো পারিশ্রমিক ছাড়াই কাজ করতে বাধ্য করেন এবং কাজ করতে অস্বীকার করলে ভয় দেখান। শ্রমিকরা কোনো আইনসম্মত বাধ্যতামূলক জনসেবামূলক কাজে নিয়োজিত নন। কোন সাংবিধানিক অনুচ্ছেদ তাদের সুরক্ষা দেয়?",
+      "expected": [
+        "34"
+      ],
+      "fuse": {
+        "keys": [
+          "34",
+          "20",
+          "14",
+          "32",
+          "147",
+          "15",
+          "40",
+          "29",
+          "31",
+          "27",
+          "116A",
+          "135",
+          "35",
+          "83",
+          "133",
+          "134",
+          "47A",
+          "45",
+          "37",
+          "42"
+        ],
+        "hits": [
+          "34"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "34",
+          "20",
+          "14",
+          "32",
+          "147",
+          "15",
+          "40",
+          "29"
+        ],
+        "hits": [
+          "34"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "176",
+        "9",
+        "বাংলাদেশ শ্রম আইন, ২০০৬"
+      ],
+      "ms": 2765,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "7-double-punishment-en",
+      "title": "7. Double Punishment",
+      "language": "en",
+      "query": "Hasan is tried and punished for a criminal offence. Later, another authority tries to prosecute and punish him again for the exact same offence. Is this permitted under the Constitution?",
+      "expected": [
+        "35"
+      ],
+      "fuse": {
+        "keys": [
+          "35",
+          "47",
+          "102",
+          "7A",
+          "99",
+          "49",
+          "34",
+          "135",
+          "51",
+          "46",
+          "31",
+          "101",
+          "152",
+          "40",
+          "44",
+          "71",
+          "22"
+        ],
+        "hits": [
+          "35"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "35",
+          "47",
+          "102",
+          "7A",
+          "99",
+          "49",
+          "34"
+        ],
+        "hits": [
+          "35"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "403",
+        "119",
+        "90",
+        "26"
+      ],
+      "ms": 2868,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "7-double-punishment-bn",
+      "title": "7. Double Punishment",
+      "language": "bn",
+      "query": "হাসান একটি অপরাধের জন্য বিচার ও শাস্তি পেয়েছেন। পরে আরেকটি কর্তৃপক্ষ একই অপরাধের জন্য তাকে আবার বিচার করে শাস্তি দিতে চায়। সংবিধান অনুযায়ী এটি কি অনুমোদিত?",
+      "expected": [
+        "35"
+      ],
+      "fuse": {
+        "keys": [
+          "35",
+          "47",
+          "7A",
+          "99",
+          "117",
+          "102",
+          "44",
+          "31",
+          "49",
+          "101",
+          "22",
+          "152",
+          "103",
+          "46",
+          "40",
+          "135",
+          "105",
+          "83"
+        ],
+        "hits": [
+          "35"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "35",
+          "47",
+          "7A",
+          "99",
+          "117",
+          "102",
+          "44",
+          "31"
+        ],
+        "hits": [
+          "35"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "27",
+        "64",
+        "10",
+        "74"
+      ],
+      "ms": 2862,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "8-freedom-of-religion-en",
+      "title": "8. Freedom of Religion",
+      "language": "en",
+      "query": "A religious community wants to establish and manage its own religious institution. A local authority prevents them from doing so without providing any lawful justification. Which constitutional provision may protect the community?",
+      "expected": [
+        "41",
+        "2A"
+      ],
+      "fuse": {
+        "keys": [
+          "41",
+          "38",
+          "2A",
+          "12",
+          "23A",
+          "47",
+          "60",
+          "102",
+          "28",
+          "32",
+          "37",
+          "44",
+          "39",
+          "7",
+          "43",
+          "29",
+          "59",
+          "36",
+          "27",
+          "24"
+        ],
+        "hits": [
+          "41",
+          "2A"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "41",
+          "38",
+          "2A",
+          "12",
+          "23A",
+          "47",
+          "60",
+          "102"
+        ],
+        "hits": [
+          "41",
+          "2A"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "3",
+        "4",
+        "296",
+        "20"
+      ],
+      "ms": 2530,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "8-freedom-of-religion-bn",
+      "title": "8. Freedom of Religion",
+      "language": "bn",
+      "query": "একটি ধর্মীয় সম্প্রদায় নিজেদের ধর্মীয় প্রতিষ্ঠান প্রতিষ্ঠা ও পরিচালনা করতে চায়। কিন্তু স্থানীয় কর্তৃপক্ষ কোনো আইনগত কারণ ছাড়াই তাদের বাধা দেয়। কোন সাংবিধানিক অনুচ্ছেদ তাদের অধিকার রক্ষা করতে পারে?",
+      "expected": [
+        "41",
+        "2A"
+      ],
+      "fuse": {
+        "keys": [
+          "41",
+          "38",
+          "12",
+          "2A",
+          "60",
+          "28",
+          "31",
+          "40",
+          "32",
+          "37",
+          "23A",
+          "44",
+          "59",
+          "36",
+          "102",
+          "43",
+          "29",
+          "39",
+          "27",
+          "116A"
+        ],
+        "hits": [
+          "41",
+          "2A"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "41",
+          "38",
+          "12",
+          "2A",
+          "60",
+          "28",
+          "31",
+          "40"
+        ],
+        "hits": [
+          "41",
+          "2A"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "13",
+        "5",
+        "20",
+        "18"
+      ],
+      "ms": 2798,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "9-property-taken-without-law-en",
+      "title": "9. Property Taken Without Law",
+      "language": "en",
+      "query": "A government authority takes possession of a citizen's private land without following any legal procedure or providing lawful authority for the action. Which constitutional provisions are relevant?",
+      "expected": [
+        "42",
+        "31"
+      ],
+      "fuse": {
+        "keys": [
+          "42",
+          "32",
+          "102",
+          "143",
+          "7",
+          "144",
+          "47",
+          "31",
+          "43",
+          "59",
+          "83",
+          "13",
+          "92A",
+          "63",
+          "145",
+          "141B",
+          "2",
+          "36",
+          "33",
+          "141A"
+        ],
+        "hits": [
+          "42",
+          "31"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "42",
+          "32",
+          "102",
+          "143",
+          "7",
+          "144",
+          "47",
+          "31"
+        ],
+        "hits": [
+          "42",
+          "31"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "32",
+        "3",
+        "1The Canals Act, 1864"
+      ],
+      "ms": 2868,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "9-property-taken-without-law-bn",
+      "title": "9. Property Taken Without Law",
+      "language": "bn",
+      "query": "একটি সরকারি কর্তৃপক্ষ কোনো আইনগত প্রক্রিয়া অনুসরণ না করে এবং বৈধ কর্তৃত্ব ছাড়াই একজন নাগরিকের ব্যক্তিগত জমি দখল করে নেয়। কোন সাংবিধানিক অনুচ্ছেদগুলো এখানে প্রাসঙ্গিক?",
+      "expected": [
+        "42",
+        "31"
+      ],
+      "fuse": {
+        "keys": [
+          "42",
+          "47",
+          "31",
+          "32",
+          "144",
+          "43",
+          "102",
+          "143",
+          "47A",
+          "141B",
+          "152",
+          "135",
+          "7A",
+          "85",
+          "7",
+          "36",
+          "145"
+        ],
+        "hits": [
+          "42",
+          "31"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "42",
+          "47",
+          "31",
+          "32",
+          "144",
+          "43",
+          "102",
+          "143"
+        ],
+        "hits": [
+          "42",
+          "31"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "ঢাকা বিদ্যুৎ বিতরণ কর্তৃপক্ষ আইন, ১৯৯০",
+        "বাংলাদেশ স্থলবন্দর কর্তৃপক্ষ আইন, ২০০১",
+        "পানি সরবরাহ ও পয়ঃনিষ্কাশন কর্তৃপক্ষ আইন, ১৯৯৬",
+        "জাতীয় গৃহায়ন কর্তৃপক্ষ আইন, ২০০০"
+      ],
+      "ms": 2968,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "10-right-to-education-en",
+      "title": "10. Right to Education",
+      "language": "en",
+      "query": "A poor family lives in a rural village. Their children cannot attend school because there is no accessible educational institution nearby. The family requests the government to take steps to ensure educational opportunities. Which constitutional provision is relevant?",
+      "expected": [
+        "17",
+        "15"
+      ],
+      "fuse": {
+        "keys": [
+          "17",
+          "16",
+          "28",
+          "41",
+          "19",
+          "15",
+          "14",
+          "23A",
+          "102",
+          "32",
+          "27",
+          "47",
+          "29",
+          "11",
+          "23",
+          "47A",
+          "10",
+          "2A",
+          "40",
+          "44"
+        ],
+        "hits": [
+          "17",
+          "15"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "17",
+          "16",
+          "28",
+          "41",
+          "19",
+          "15",
+          "14",
+          "23A"
+        ],
+        "hits": [
+          "17",
+          "15"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "18",
+        "7",
+        "5",
+        "2"
+      ],
+      "ms": 2662,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "10-right-to-education-bn",
+      "title": "10. Right to Education",
+      "language": "bn",
+      "query": "একটি দরিদ্র পরিবার গ্রামে বসবাস করে। কাছাকাছি কোনো সহজলভ্য শিক্ষাপ্রতিষ্ঠান না থাকায় তাদের সন্তানরা স্কুলে যেতে পারে না। পরিবারটি শিক্ষার সুযোগ নিশ্চিত করার জন্য সরকারের কাছে ব্যবস্থা নেওয়ার দাবি জানায়। কোন সাংবিধানিক অনুচ্ছেদ এখানে প্রাসঙ্গিক?",
+      "expected": [
+        "17",
+        "15"
+      ],
+      "fuse": {
+        "keys": [
+          "17",
+          "28",
+          "41",
+          "19",
+          "15",
+          "27",
+          "16",
+          "32",
+          "29",
+          "92A",
+          "102",
+          "47A",
+          "23A",
+          "20",
+          "40",
+          "14",
+          "31",
+          "36",
+          "18",
+          "60"
+        ],
+        "hits": [
+          "17",
+          "15"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "17",
+          "28",
+          "41",
+          "19",
+          "15",
+          "27",
+          "16",
+          "32"
+        ],
+        "hits": [
+          "17",
+          "15"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "প্রাথমিক শিক্ষা (বাধ্যতামূলক করণ) আইন, ১৯৯০",
+        "বাংলাদেশ শ্রম আইন, ২০০৬"
+      ],
+      "ms": 3072,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "rape-and-justice-en",
+      "title": "Rape and Justice — ধর্ষণ ও বিচার",
+      "language": "en",
+      "query": "A woman reports that she was sexually assaulted by a person she knew. The accused threatens her family to stop her from filing a police complaint. Her family wants to seek justice. Which constitutional rights and protections may be relevant?",
+      "expected": [
+        "27",
+        "31",
+        "32"
+      ],
+      "fuse": {
+        "keys": [
+          "43",
+          "102",
+          "35",
+          "32",
+          "39",
+          "28",
+          "38",
+          "31",
+          "47A",
+          "44",
+          "37",
+          "23A",
+          "7A",
+          "27",
+          "116A",
+          "41",
+          "33",
+          "34"
+        ],
+        "hits": [
+          "27",
+          "31",
+          "32"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "43",
+          "102",
+          "35",
+          "32",
+          "39",
+          "28",
+          "38",
+          "31"
+        ],
+        "hits": [
+          "31",
+          "32"
+        ],
+        "misses": [
+          "27"
+        ],
+        "recall": 0.6666666666666666
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [
+        "27"
+      ],
+      "leak_class": "topk_truncation",
+      "context_size": 12,
+      "statute_refs": [
+        "190",
+        "The International Crimes (Tribunals) Act, 1973",
+        "19",
+        "354"
+      ],
+      "ms": 2866,
+      "ok": false,
+      "error": ""
+    },
+    {
+      "case_id": "rape-and-justice-bn",
+      "title": "Rape and Justice — ধর্ষণ ও বিচার",
+      "language": "bn",
+      "query": "একজন নারী পরিচিত এক ব্যক্তির বিরুদ্ধে যৌন নির্যাতনের অভিযোগ করেন। অভিযুক্ত ব্যক্তি মামলা করা থেকে বিরত রাখতে তার পরিবারকে হুমকি দেয়। পরিবারটি ন্যায়বিচার পেতে চায়। বাংলাদেশের সংবিধানের কোন অধিকার ও সুরক্ষাগুলো এখানে প্রাসঙ্গিক?",
+      "expected": [
+        "27",
+        "31",
+        "32"
+      ],
+      "fuse": {
+        "keys": [
+          "31",
+          "43",
+          "35",
+          "102",
+          "47A",
+          "44",
+          "32",
+          "39",
+          "116A",
+          "27",
+          "36",
+          "47",
+          "28",
+          "38",
+          "34",
+          "141C",
+          "103",
+          "40",
+          "19"
+        ],
+        "hits": [
+          "27",
+          "31",
+          "32"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "31",
+          "43",
+          "35",
+          "102",
+          "47A",
+          "44",
+          "32"
+        ],
+        "hits": [
+          "31",
+          "32"
+        ],
+        "misses": [
+          "27"
+        ],
+        "recall": 0.6666666666666666
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [
+        "27"
+      ],
+      "leak_class": "topk_truncation",
+      "context_size": 12,
+      "statute_refs": [
+        "4",
+        "14",
+        "6",
+        "37"
+      ],
+      "ms": 3374,
+      "ok": false,
+      "error": ""
+    },
+    {
+      "case_id": "2-attempted-rape-en",
+      "title": "2. Attempted Rape — ধর্ষণের চেষ্টা",
+      "language": "en",
+      "query": "A woman is attacked by a person who attempts to sexually assault her, but she manages to escape. She reports the incident to the police. What constitutional protections are relevant to her situation?",
+      "expected": [
+        "31",
+        "32"
+      ],
+      "fuse": {
+        "keys": [
+          "35",
+          "43",
+          "32",
+          "28",
+          "33",
+          "31",
+          "102",
+          "47A",
+          "18",
+          "39",
+          "27",
+          "19",
+          "51",
+          "29",
+          "38",
+          "7A",
+          "47",
+          "23A",
+          "37",
+          "148"
+        ],
+        "hits": [
+          "31",
+          "32"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "35",
+          "43",
+          "32",
+          "28",
+          "33",
+          "31",
+          "102",
+          "47A"
+        ],
+        "hits": [
+          "31",
+          "32"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "354",
+        "100",
+        "375",
+        "The Code of Criminal Procedure, 1898"
+      ],
+      "ms": 2970,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "2-attempted-rape-bn",
+      "title": "2. Attempted Rape — ধর্ষণের চেষ্টা",
+      "language": "bn",
+      "query": "একজন নারীকে একজন ব্যক্তি যৌন নির্যাতনের চেষ্টা করে, কিন্তু তিনি পালিয়ে যেতে সক্ষম হন। পরে তিনি পুলিশের কাছে অভিযোগ করেন। এই পরিস্থিতিতে কোন সাংবিধানিক অধিকারগুলো প্রাসঙ্গিক?",
+      "expected": [
+        "31",
+        "32"
+      ],
+      "fuse": {
+        "keys": [
+          "43",
+          "35",
+          "31",
+          "47A",
+          "32",
+          "102",
+          "28",
+          "33",
+          "27",
+          "19",
+          "34",
+          "47",
+          "37",
+          "39",
+          "15",
+          "40",
+          "36",
+          "38",
+          "92A"
+        ],
+        "hits": [
+          "31",
+          "32"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "43",
+          "35",
+          "31",
+          "47A",
+          "32",
+          "102",
+          "28",
+          "33"
+        ],
+        "hits": [
+          "31",
+          "32"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [],
+      "leak_class": "ok",
+      "context_size": 12,
+      "statute_refs": [
+        "4",
+        "নারী ও শিশু নির্যাতন দমন আইন, ২০০০"
+      ],
+      "ms": 2559,
+      "ok": true,
+      "error": ""
+    },
+    {
+      "case_id": "4-domestic-violence-en",
+      "title": "4. Domestic Violence — পারিবারিক সহিংসতা",
+      "language": "en",
+      "query": "A married woman is repeatedly subjected to violence and threats by her husband. She wants legal protection but her husband tells her that family matters are not subject to legal intervention. Is his claim constitutionally correct?",
+      "expected": [
+        "27",
+        "28",
+        "31",
+        "32"
+      ],
+      "fuse": {
+        "keys": [
+          "43",
+          "102",
+          "28",
+          "116A",
+          "31",
+          "47A",
+          "41",
+          "44",
+          "32",
+          "18",
+          "38",
+          "39",
+          "47",
+          "35",
+          "78",
+          "7",
+          "7A"
+        ],
+        "hits": [
+          "28",
+          "31",
+          "32"
+        ],
+        "misses": [
+          "27"
+        ],
+        "recall": 0.75
+      },
+      "llm_context": {
+        "keys": [
+          "43",
+          "102",
+          "28",
+          "116A",
+          "31",
+          "47A",
+          "41"
+        ],
+        "hits": [
+          "28",
+          "31"
+        ],
+        "misses": [
+          "27",
+          "32"
+        ],
+        "recall": 0.5
+      },
+      "miss_at_fuse": [
+        "27"
+      ],
+      "dropped_by_topk": [
+        "32"
+      ],
+      "leak_class": "mixed_ranker_and_topk",
+      "context_size": 12,
+      "statute_refs": [
+        "34",
+        "2",
+        "122",
+        "345"
+      ],
+      "ms": 2974,
+      "ok": false,
+      "error": ""
+    },
+    {
+      "case_id": "4-domestic-violence-bn",
+      "title": "4. Domestic Violence — পারিবারিক সহিংসতা",
+      "language": "bn",
+      "query": "একজন বিবাহিত নারী তার স্বামীর দ্বারা বারবার নির্যাতন ও হুমকির শিকার হন। তিনি আইনি সুরক্ষা চান, কিন্তু তার স্বামী দাবি করেন যে পারিবারিক বিষয়ে আইন হস্তক্ষেপ করতে পারে না। তার দাবি কি সাংবিধানিকভাবে সঠিক?",
+      "expected": [
+        "27",
+        "28",
+        "31",
+        "32"
+      ],
+      "fuse": {
+        "keys": [
+          "43",
+          "31",
+          "47A",
+          "32",
+          "44",
+          "116A",
+          "47",
+          "15",
+          "35",
+          "102",
+          "40",
+          "38",
+          "36",
+          "19",
+          "27",
+          "25",
+          "28"
+        ],
+        "hits": [
+          "27",
+          "28",
+          "31",
+          "32"
+        ],
+        "misses": [],
+        "recall": 1.0
+      },
+      "llm_context": {
+        "keys": [
+          "43",
+          "31",
+          "47A",
+          "32",
+          "44",
+          "116A",
+          "47",
+          "15"
+        ],
+        "hits": [
+          "31",
+          "32"
+        ],
+        "misses": [
+          "27",
+          "28"
+        ],
+        "recall": 0.5
+      },
+      "miss_at_fuse": [],
+      "dropped_by_topk": [
+        "27",
+        "28"
+      ],
+      "leak_class": "topk_truncation",
+      "context_size": 12,
+      "statute_refs": [
+        "14",
+        "4",
+        "3",
+        "15"
+      ],
+      "ms": 3306,
+      "ok": false,
+      "error": ""
+    }
+  ]
+}

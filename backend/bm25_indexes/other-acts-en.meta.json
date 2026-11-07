@@ -1,0 +1,13 @@
+{
+  "kind": "other-acts",
+  "language": "en",
+  "qdrant_collection": "verdictai-voyage-4",
+  "rows": 19072,
+  "skipped_footnote": 0,
+  "skipped_empty": 0,
+  "n_docs": 19072,
+  "avgdl": 98.5446,
+  "terms": 16482,
+  "built_seconds": 43.84,
+  "pickle": "other-acts-en.pkl"
+}

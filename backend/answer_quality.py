@@ -126,6 +126,102 @@ def retrieval_text(query: str, history=None) -> str:
     return "\n".join(part for part in parts if part)[:2000]
 
 
+def _aspect_rewrite_enabled() -> bool:
+    raw = os.getenv("RETRIEVAL_ASPECT_QUERIES", "1").strip().lower()
+    return raw not in ("0", "false", "no", "off")
+
+
+def retrieval_aspect_queries(query: str, language: str | None = None) -> list[str]:
+    """Cheap LLM split of one legal story into role-shaped search queries.
+
+    Always includes the original question first. Each extra query should target
+    one operative legal role tied to the facts (right / duty / prohibition /
+    safeguard), so retrieval prefers provision text over glossary or vague
+    rights umbrellas. Never asks for article numbers. On failure, returns
+    [query] only. Disable with RETRIEVAL_ASPECT_QUERIES=0.
+    """
+    import json
+
+    text = (query or "").strip()
+    if not text:
+        return []
+    if not _aspect_rewrite_enabled():
+        return [text]
+
+    lang = language if language in ("en", "bn") else question_script(text)
+    if lang == "bn":
+        lang_rule = "Write every search query in Bangla."
+    else:
+        lang_rule = "Write every search query in English."
+
+    system = (
+        "You prepare search queries for a Bangladesh law retrieval index "
+        "(constitution and statutes). "
+        "Return JSON only: {\"queries\": [\"...\", \"...\"]}. "
+        "Give 2 or 3 short queries. Each query covers ONE distinct legal role "
+        "in the user's facts — a right, a duty, a prohibition, or a procedural "
+        "safeguard that an operative provision would state — and stays tied to "
+        "who did what to whom. "
+        "Phrase each query like operative provision language, for example: "
+        "equality before law without birth-based discrimination; "
+        "no deprivation of personal liberty except in accordance with law; "
+        "public servant duty to serve the people; "
+        "arrest must state grounds and allow consult with a lawyer; "
+        "prohibition of forced unpaid labour. "
+        "Do not write vague umbrella queries such as constitutional rights, "
+        "fundamental rights, relevant provisions, legal definitions, "
+        "interpretation of terms, or high court writ / enforcement of rights. "
+        f"{lang_rule} "
+        "Do not name article numbers, section numbers, act titles, or case citations. "
+        "Do not answer the legal question. Do not invent facts."
+    )
+    prompt = (
+        "User question:\n"
+        f"{text[:1500]}\n\n"
+        "JSON with 2 or 3 role-shaped search queries:"
+    )
+    try:
+        from groq_client import generate_text
+
+        raw = generate_text(
+            prompt,
+            system=system,
+            temperature=0,
+            max_tokens=280,
+            json_mode=True,
+        )
+        payload = json.loads(raw or "")
+        rows = payload.get("queries") if isinstance(payload, dict) else None
+    except Exception:
+        return [text]
+
+    # Drop rewriter lines that cite provision numbers (retrieval must not be
+    # steered by invented article labels).
+    cite_noise = re.compile(
+        r"(?i)\b(?:article|art\.?|section|sec\.?|অনুচ্ছেদ|ধারা)\s*[0-9০-৯]+"
+    )
+    aspects: list[str] = [text]
+    seen = {text.casefold()}
+    if isinstance(rows, list):
+        for item in rows:
+            if not isinstance(item, str):
+                continue
+            cleaned = " ".join(item.split()).strip()
+            if len(cleaned) < 8 or len(cleaned) > 300:
+                continue
+            if cite_noise.search(cleaned):
+                continue
+            key = cleaned.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            aspects.append(cleaned)
+            # Original question + up to 3 role aspects.
+            if len(aspects) >= 4:
+                break
+    return aspects
+
+
 def _specific_tokens(text: str) -> set[str]:
     tokens = set()
     for token in tokenize(text):

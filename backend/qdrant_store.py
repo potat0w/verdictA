@@ -1,8 +1,8 @@
 """Semantic search against the serving Qdrant collection.
 
-The collection stores 384-dimensional cosine vectors for
-sentence-transformers/all-MiniLM-L6-v2. Point ids are the row numbers produced
-by build_index.py. A restarted upload upserts those same ids.
+MiniLM indexing still writes to COLLECTION_NAME (verdictai, 384-d).
+Live queries with EMBEDDING_PROVIDER=voyage read VOYAGE_COLLECTION
+(verdictai-voyage-4, 1024-d). Point ids are the row numbers from the index build.
 """
 
 from __future__ import annotations
@@ -13,12 +13,15 @@ import threading
 
 COLLECTION_NAME = "verdictai"
 VECTOR_SIZE = 384
+VOYAGE_DEFAULT_COLLECTION = "verdictai-voyage-4"
 UPLOAD_BATCH = 128
 
 _client = None
 _client_lock = threading.Lock()
 _payload_indexes_ready = False
+_payload_indexes_collection: str | None = None
 _query_ready = False
+_query_ready_collection: str | None = None
 
 
 def qdrant_configured() -> bool:
@@ -26,6 +29,42 @@ def qdrant_configured() -> bool:
 
     load_dotenv()
     return bool(os.getenv("QDRANT_URL", "").strip())
+
+
+def active_collection() -> str:
+    """Qdrant collection used for live search and payload reads."""
+    from dotenv import load_dotenv
+
+    from embedding_provider import provider_name
+
+    load_dotenv()
+    if provider_name() == "voyage":
+        name = os.getenv("VOYAGE_COLLECTION", VOYAGE_DEFAULT_COLLECTION).strip()
+        if not name:
+            raise RuntimeError("VOYAGE_COLLECTION is empty")
+        if name == COLLECTION_NAME:
+            raise RuntimeError(
+                f"VOYAGE_COLLECTION must not be {COLLECTION_NAME}. "
+                f"Use {VOYAGE_DEFAULT_COLLECTION}."
+            )
+        return name
+    return COLLECTION_NAME
+
+
+def active_vector_size() -> int:
+    from embedding_provider import dimension, provider_name
+
+    if provider_name() == "voyage":
+        return dimension()
+    return VECTOR_SIZE
+
+
+def active_stored_model() -> str:
+    from embedding_provider import STORED_MODEL, model_name, provider_name
+
+    if provider_name() == "voyage":
+        return model_name()
+    return STORED_MODEL
 
 
 def get_client():
@@ -81,14 +120,15 @@ def payload_from_chunk(chunk: dict) -> dict:
 
 def ensure_payload_indexes() -> None:
     """Keyword indexes so a collection filter does not scan every point."""
-    global _payload_indexes_ready
-    if _payload_indexes_ready:
+    global _payload_indexes_ready, _payload_indexes_collection
+    name = active_collection()
+    if _payload_indexes_ready and _payload_indexes_collection == name:
         return
     client = get_client()
     for field in ("collection", "language"):
         try:
             client.create_payload_index(
-                collection_name=COLLECTION_NAME,
+                collection_name=name,
                 field_name=field,
                 field_schema="keyword",
             )
@@ -97,6 +137,7 @@ def ensure_payload_indexes() -> None:
             if "already exists" not in message and "already_exists" not in message:
                 raise
     _payload_indexes_ready = True
+    _payload_indexes_collection = name
 
 
 def _collection_filter(collection: str, language: str | None = None):
@@ -112,15 +153,17 @@ def iter_payloads(collection: str, language: str | None = None):
     """Yield one collection's passages. This never scrolls the whole vector set."""
     ensure_payload_indexes()
     client = get_client()
-    if not client.collection_exists(COLLECTION_NAME):
+    name = active_collection()
+    if not client.collection_exists(name):
         raise FileNotFoundError(
-            f"Qdrant collection {COLLECTION_NAME} was not found. Run build_index.py."
+            f"Qdrant collection {name} was not found. "
+            "Run build_voyage_index.py (voyage) or build_index.py (MiniLM)."
         )
     offset = None
     query_filter = _collection_filter(collection, language)
     while True:
         points, offset = client.scroll(
-            collection_name=COLLECTION_NAME,
+            collection_name=name,
             scroll_filter=query_filter,
             limit=256,
             offset=offset,
@@ -137,8 +180,9 @@ def fetch_payloads(row_ids: list[int]) -> dict[int, dict]:
     """Passage text for specific point ids. Missing local metadata uses this."""
     if not row_ids:
         return {}
+    name = active_collection()
     points = get_client().retrieve(
-        collection_name=COLLECTION_NAME,
+        collection_name=name,
         ids=row_ids,
         with_payload=True,
         with_vectors=False,
@@ -155,9 +199,12 @@ def fetch_payloads(row_ids: list[int]) -> dict[int, dict]:
 
 
 def _reset_ready_flags() -> None:
-    global _payload_indexes_ready, _query_ready
+    global _payload_indexes_ready, _payload_indexes_collection, _query_ready
+    global _query_ready_collection
     _payload_indexes_ready = False
+    _payload_indexes_collection = None
     _query_ready = False
+    _query_ready_collection = None
 
 
 def _create_serving_collection() -> None:
@@ -299,21 +346,23 @@ def upsert_chunk_batch(rows: list[tuple[int, dict, list[float]]]) -> None:
 
 
 def point_count() -> int:
-    counted = get_client().count(collection_name=COLLECTION_NAME, exact=True)
+    counted = get_client().count(collection_name=active_collection(), exact=True)
     return int(counted.count)
 
 
 def serving_status() -> dict:
-    """Collection geometry and exact point count."""
+    """Collection geometry and exact point count for the active query collection."""
     client = get_client()
-    if not client.collection_exists(COLLECTION_NAME):
+    name = active_collection()
+    if not client.collection_exists(name):
         raise FileNotFoundError(
-            f"Qdrant collection {COLLECTION_NAME} was not found. Run build_index.py."
+            f"Qdrant collection {name} was not found. "
+            "Run build_voyage_index.py (voyage) or build_index.py (MiniLM)."
         )
-    info = client.get_collection(COLLECTION_NAME)
+    info = client.get_collection(name)
     size, distance = _vector_config(info)
     return {
-        "name": COLLECTION_NAME,
+        "name": name,
         "size": size,
         "distance": _distance_name(distance),
         "points": point_count(),
@@ -323,77 +372,101 @@ def serving_status() -> dict:
 def assert_collection_ready(expected_points: int) -> None:
     """Fail when the collection is missing, the wrong shape, or short of rows."""
     status = serving_status()
-    if status["size"] != VECTOR_SIZE or status["distance"] != "cosine":
+    expected_size = active_vector_size()
+    name = status["name"]
+    if status["size"] != expected_size or status["distance"] != "cosine":
         raise RuntimeError(
-            f"Qdrant collection {COLLECTION_NAME} is size={status['size']} "
-            f"distance={status['distance']}. Expected {VECTOR_SIZE} cosine."
+            f"Qdrant collection {name} is size={status['size']} "
+            f"distance={status['distance']}. Expected {expected_size} cosine."
         )
     if status["points"] != expected_points:
         raise FileNotFoundError(
-            f"Qdrant collection {COLLECTION_NAME} has {status['points']} vectors, "
-            f"expected {expected_points}. Run build_index.py."
+            f"Qdrant collection {name} has {status['points']} vectors, "
+            f"expected {expected_points}. Run the matching index build."
         )
 
 
 def assert_query_ready(vector: list[float]) -> None:
     """Refuse a query vector that does not match the stored collection."""
-    global _query_ready
-    from embedding_provider import STORED_MODEL
+    global _query_ready, _query_ready_collection
 
-    if len(vector) != VECTOR_SIZE:
+    name = active_collection()
+    expected_size = active_vector_size()
+    expected_model = active_stored_model()
+    if len(vector) != expected_size:
         raise RuntimeError(
             f"Query embedding has {len(vector)} dimensions; "
-            f"{COLLECTION_NAME} stores {VECTOR_SIZE}."
+            f"{name} stores {expected_size}."
         )
-    if _query_ready:
+    if _query_ready and _query_ready_collection == name:
         return
     status = serving_status()
-    if status["size"] != VECTOR_SIZE or status["distance"] != "cosine":
+    if status["size"] != expected_size or status["distance"] != "cosine":
         raise RuntimeError(
-            f"Refusing to search {COLLECTION_NAME}: size={status['size']} "
-            f"distance={status['distance']}. Expected {VECTOR_SIZE} cosine vectors "
-            f"from {STORED_MODEL}."
+            f"Refusing to search {name}: size={status['size']} "
+            f"distance={status['distance']}. Expected {expected_size} cosine vectors "
+            f"from {expected_model}."
         )
     sample = get_client().retrieve(
-        collection_name=COLLECTION_NAME,
+        collection_name=name,
         ids=[0],
         with_payload=True,
         with_vectors=False,
     )
     model = (sample[0].payload or {}).get("embedding_model") if sample else None
-    if model != STORED_MODEL:
+    if model != expected_model:
         raise RuntimeError(
-            f"Refusing to search {COLLECTION_NAME}: stored model is {model!r}, "
-            f"expected {STORED_MODEL}."
+            f"Refusing to search {name}: stored model is {model!r}, "
+            f"expected {expected_model}."
         )
     _query_ready = True
+    _query_ready_collection = name
 
 
 def search_collection_scored(
-    vector: list[float], collection: str, k: int
+    vector: list[float],
+    collection: str,
+    k: int,
+    language: str | None = None,
 ) -> list[tuple[int, float]]:
-    """Nearest point ids and cosine scores. Same filter and limit as search_collection."""
+    """Nearest point ids and cosine scores. Same filter and limit as search_collection.
+
+    language narrows other-acts (and any multi-language collection). Constitution
+    partitions are already language-split by collection name.
+    """
     from qdrant_client.models import FieldCondition, Filter, MatchValue
 
     if k <= 0:
         return []
     assert_query_ready(vector)
     ensure_payload_indexes()
+    name = active_collection()
+    must = [FieldCondition(key="collection", match=MatchValue(value=collection))]
+    if language:
+        must.append(FieldCondition(key="language", match=MatchValue(value=language)))
     found = get_client().query_points(
-        collection_name=COLLECTION_NAME,
+        collection_name=name,
         query=vector,
-        query_filter=Filter(
-            must=[FieldCondition(key="collection", match=MatchValue(value=collection))]
-        ),
+        query_filter=Filter(must=must),
         limit=k,
         with_payload=False,
     )
     return [(int(point.id), float(point.score)) for point in found.points]
 
 
-def search_collection(vector: list[float], collection: str, k: int) -> list[int]:
+def search_collection(
+    vector: list[float],
+    collection: str,
+    k: int,
+    language: str | None = None,
+) -> list[int]:
     """Nearest point ids inside one constitution or statute collection."""
-    return [row_id for row_id, _score in search_collection_scored(vector, collection, k)]
+    return [
+        row_id
+        for row_id, _score in search_collection_scored(
+            vector, collection, k, language=language
+        )
+    ]
 
 
 def upload_index(index_path: str, meta_path: str) -> int:

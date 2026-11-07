@@ -1,1 +1,0 @@
-{"model_name": "sentence-transformers/all-MiniLM-L6-v2", "query_prefix": "", "passage_prefix": "", "dimension": 384, "distance": "Cosine", "chunks": 46728, "index_provider": "tei"}

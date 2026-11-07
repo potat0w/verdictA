@@ -270,6 +270,33 @@ def test_context_limit_reads_the_environment(monkeypatch):
     assert context_limit() == 8
 
 
+def test_retrieval_aspect_queries_keeps_original_and_rejects_empty(monkeypatch):
+    from answer_quality import retrieval_aspect_queries
+
+    monkeypatch.setenv("RETRIEVAL_ASPECT_QUERIES", "1")
+    monkeypatch.setattr(
+        "groq_client.generate_text",
+        lambda *args, **kwargs: (
+            '{"queries":["arrest must state grounds to the detained person",'
+            '"right to consult a lawyer after arrest",'
+            '"no detention except in accordance with law",'
+            '"Article 33"]}'
+        ),
+    )
+    query = "Police arrest Karim and refuse to say why."
+    aspects = retrieval_aspect_queries(query, "en")
+    assert aspects[0] == query
+    assert "arrest must state grounds to the detained person" in aspects
+    assert "right to consult a lawyer after arrest" in aspects
+    assert "no detention except in accordance with law" in aspects
+    assert len(aspects) == 4
+    # Article numbers from the rewriter must not be kept as search aspects.
+    assert all("article 33" not in item.casefold() for item in aspects[1:])
+
+    monkeypatch.setenv("RETRIEVAL_ASPECT_QUERIES", "0")
+    assert retrieval_aspect_queries(query, "en") == [query]
+
+
 def test_definition_lists_are_not_used_as_the_rule():
     from answer_quality import is_definition_dump
 

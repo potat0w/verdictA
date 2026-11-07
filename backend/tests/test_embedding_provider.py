@@ -101,3 +101,47 @@ def test_parse_accepts_a_single_flat_vector():
     parsed = parse_embeddings([0.5] * 384, count=1, width=384)
     assert len(parsed) == 1
     assert len(parsed[0]) == 384
+
+
+def test_voyage_query_uses_query_input_type(monkeypatch):
+    calls = []
+
+    class FakeClient:
+        def embed(self, texts, model, input_type, output_dimension):
+            calls.append(
+                {
+                    "texts": texts,
+                    "model": model,
+                    "input_type": input_type,
+                    "output_dimension": output_dimension,
+                }
+            )
+
+            class Result:
+                embeddings = [[0.1] * 1024 for _ in texts]
+
+            return Result()
+
+    monkeypatch.setenv("EMBEDDING_PROVIDER", "voyage")
+    monkeypatch.setenv("VOYAGE_API_KEY", "voyage-test-key")
+    monkeypatch.setenv("VOYAGE_MODEL", "voyage-4")
+    monkeypatch.setenv("VOYAGE_DIMENSIONS", "1024")
+    monkeypatch.setattr("embedding_provider._voyage_client", FakeClient())
+
+    from embedding_provider import embed_query, provider_name
+
+    assert provider_name() == "voyage"
+    vector = embed_query("arrest rights")
+    assert len(vector) == 1024
+    assert calls[0]["input_type"] == "query"
+    assert calls[0]["model"] == "voyage-4"
+    assert calls[0]["output_dimension"] == 1024
+
+
+def test_active_collection_follows_voyage(monkeypatch):
+    monkeypatch.setenv("EMBEDDING_PROVIDER", "voyage")
+    monkeypatch.setenv("VOYAGE_COLLECTION", "verdictai-voyage-4")
+    from qdrant_store import active_collection, active_vector_size
+
+    assert active_collection() == "verdictai-voyage-4"
+    assert active_vector_size() == 1024

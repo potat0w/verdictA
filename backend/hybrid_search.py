@@ -17,13 +17,6 @@ BM25_K1 = 1.2
 BM25_B = 0.75
 
 _TOKEN = re.compile(r"[A-Za-z0-9]+|[\u0980-\u09FF]+")
-# Inflection endings, using the vowel sign ে rather than the letter এ.
-# The surface word is kept. These only add the form that appears in the constitution.
-_BN_SUFFIXES = ("গুলোর", "গুলো", "গুলি", "দের", "কৃত", "ের", "কে", "তে", "টি", "টা")
-# Genitive র after া/ি/ী, as in চলাফেরার. ে+র is already the ের suffix.
-_BN_GENITIVE_SIGNS = set("ািী")
-# The constitution says গ্রহণ where a question says অধিগ্রহণ.
-_BN_ALSO = {"অধিগ্রহণ": ("গ্রহণ",)}
 # Frequent Bangla function words. They match almost every article and hide the real issue.
 _BN_FUNCTION = {
     "এবং", "বা", "না", "কি", "কী", "এই", "সে", "তার", "জন্য", "করা", "করে",
@@ -57,46 +50,13 @@ def _fold_english(token: str) -> str:
     return token
 
 
-def _bangla_forms(token: str) -> list[str]:
-    """Surface form plus the stem. চলাফেরার then also matches চলাফেরা."""
-    forms = [token]
-    pending = [token]
-    while pending:
-        current = pending.pop()
-        candidates: list[str] = []
-        for suffix in _BN_SUFFIXES:
-            if current.endswith(suffix) and len(current) - len(suffix) >= 4:
-                candidates.append(current[: -len(suffix)])
-        if (
-            len(current) >= 6
-            and current.endswith("র")
-            and not current.endswith("ের")
-            and current[-2] in _BN_GENITIVE_SIGNS
-        ):
-            stem = current[:-1]
-            if len(stem) >= 5:
-                candidates.append(stem)
-        for stem in candidates:
-            if stem not in forms:
-                forms.append(stem)
-                pending.append(stem)
-    for form in list(forms):
-        for extra in _BN_ALSO.get(form, ()):
-            if extra not in forms:
-                forms.append(extra)
-    return forms
-
-
 def tokenize(text: str) -> list[str]:
     folded = []
     for token in _TOKEN.findall(normalize_query(text)):
         word = _fold_english(token.lower())
         if word in _BN_FUNCTION:
             continue
-        if any("\u0980" <= char <= "\u09ff" for char in word):
-            folded.extend(_bangla_forms(word))
-        else:
-            folded.append(word)
+        folded.append(word)
     return folded
 
 

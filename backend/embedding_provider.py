@@ -1,9 +1,9 @@
 """Query and document embeddings.
 
-Local indexing calls the Text Embeddings Inference server. Queries use that
-server, the same MiniLM model inside this process, or the Hugging Face
-Inference API. The model and width must match the Qdrant collection.
-This module does not write to Qdrant.
+Live queries may use Voyage (voyage-4 → verdictai-voyage-4), a local TEI
+server, in-process MiniLM, or Hugging Face. The active provider's model and
+width must match the Qdrant collection being searched.
+MiniLM indexing still uses STORED_* below. This module does not write to Qdrant.
 """
 
 from __future__ import annotations
@@ -20,11 +20,15 @@ import httpx
 STORED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 STORED_DIMENSION = 384
 STORED_DISTANCE = "Cosine"
+VOYAGE_DEFAULT_MODEL = "voyage-4"
+VOYAGE_DEFAULT_DIMENSION = 1024
 TEI_MAX_BATCH = 32
 MAX_ATTEMPTS = 5
 MAX_RETRY_WAIT_SECONDS = 8.0
 
 _http: httpx.Client | None = None
+_voyage_client: Any = None
+_voyage_lock = threading.Lock()
 
 
 class EmbeddingError(RuntimeError):
@@ -50,6 +54,7 @@ def _tei_host_is_local() -> bool:
 def provider_name() -> str:
     """The embedding host for this process.
 
+    EMBEDDING_PROVIDER=voyage uses Voyage for live query vectors.
     A machine with Docker sets EMBEDDING_PROVIDER=tei. Render cannot reach a
     localhost TEI server, so it uses the same MiniLM model inside this process.
     A public TEI_BASE_URL on Render stays on tei.
@@ -71,14 +76,34 @@ def provider_name() -> str:
             "TEI_BASE_URL is local, so Render uses the in-process MiniLM model"
         )
         return "fastembed"
-    if raw in ("tei", "fastembed", "huggingface"):
+    if raw in ("tei", "fastembed", "huggingface", "voyage"):
         return raw
     raise EmbeddingError(
-        "EMBEDDING_PROVIDER must be 'tei', 'fastembed', or 'huggingface'"
+        "EMBEDDING_PROVIDER must be 'voyage', 'tei', 'fastembed', or 'huggingface'"
     )
 
 
-def model_name() -> str:
+def voyage_model() -> str:
+    _load_env()
+    model = os.getenv("VOYAGE_MODEL", VOYAGE_DEFAULT_MODEL).strip()
+    if not model:
+        raise EmbeddingError("VOYAGE_MODEL is empty")
+    return model
+
+
+def voyage_dimension() -> int:
+    _load_env()
+    raw = os.getenv("VOYAGE_DIMENSIONS", str(VOYAGE_DEFAULT_DIMENSION)).strip()
+    try:
+        width = int(raw)
+    except ValueError as exc:
+        raise EmbeddingError("VOYAGE_DIMENSIONS must be an integer") from exc
+    if width <= 0:
+        raise EmbeddingError("VOYAGE_DIMENSIONS must be greater than zero")
+    return width
+
+
+def _minilm_model() -> str:
     _load_env()
     model = os.getenv("EMBEDDING_MODEL", STORED_MODEL).strip()
     if not model:
@@ -86,7 +111,7 @@ def model_name() -> str:
     return model
 
 
-def dimension() -> int:
+def _minilm_dimension() -> int:
     _load_env()
     raw = os.getenv("EMBEDDING_DIMENSION", str(STORED_DIMENSION)).strip()
     try:
@@ -98,10 +123,27 @@ def dimension() -> int:
     return width
 
 
-def require_stored_configuration() -> tuple[str, int]:
-    """Refuse a model or width that is not the one stored in Qdrant."""
-    model = model_name()
-    width = dimension()
+def model_name() -> str:
+    """Model for the active live query provider."""
+    if provider_name() == "voyage":
+        return voyage_model()
+    return _minilm_model()
+
+
+def dimension() -> int:
+    """Vector width for the active live query provider."""
+    if provider_name() == "voyage":
+        return voyage_dimension()
+    return _minilm_dimension()
+
+
+def require_stored_configuration(provider: str | None = None) -> tuple[str, int]:
+    """Refuse a model or width that is not the one stored for this provider."""
+    selected = provider or provider_name()
+    if selected == "voyage":
+        return voyage_model(), voyage_dimension()
+    model = _minilm_model()
+    width = _minilm_dimension()
     if model != STORED_MODEL or width != STORED_DIMENSION:
         raise EmbeddingError(
             f"Refusing to embed with {model} at {width} dimensions. "
@@ -130,7 +172,7 @@ def _hf_token() -> str:
     return token
 
 
-def huggingface_embed_url() -> str:
+def huggingface_embed_url(model: str | None = None) -> str:
     _load_env()
     base = os.getenv(
         "HF_INFERENCE_URL",
@@ -138,7 +180,7 @@ def huggingface_embed_url() -> str:
     ).strip().rstrip("/")
     if not base:
         raise EmbeddingError("HF_INFERENCE_URL is empty")
-    return f"{base}/models/{model_name()}/pipeline/feature-extraction"
+    return f"{base}/models/{model or _minilm_model()}/pipeline/feature-extraction"
 
 
 def _redact(text: str) -> str:
@@ -256,7 +298,7 @@ _local_lock = threading.Lock()
 def _local_vectors(texts: list[str]) -> list[list[float]]:
     """Same MiniLM weights as the TEI index, computed in this process."""
     global _local_model
-    model, width = require_stored_configuration()
+    model, width = require_stored_configuration("fastembed")
     with _local_lock:
         if _local_model is None:
             from fastembed import TextEmbedding
@@ -270,14 +312,86 @@ def _local_vectors(texts: list[str]) -> list[list[float]]:
 
 
 def preload_local_model() -> None:
-    """Download the local model at startup. TEI and Hugging Face skip this."""
+    """Download the local model at startup. Voyage, TEI, and Hugging Face skip this."""
     if provider_name() != "fastembed":
         return
     _local_vectors(["warmup"])
 
 
+def _voyage_api_key() -> str:
+    _load_env()
+    key = os.getenv("VOYAGE_API_KEY", "").strip()
+    if not key:
+        raise EmbeddingError("VOYAGE_API_KEY is not set")
+    return key
+
+
+def _get_voyage_client() -> Any:
+    global _voyage_client
+    with _voyage_lock:
+        if _voyage_client is None:
+            try:
+                import voyageai
+            except ImportError as exc:
+                raise EmbeddingError(
+                    "voyageai is not installed. Run: pip install voyageai"
+                ) from exc
+            _voyage_client = voyageai.Client(api_key=_voyage_api_key())
+        return _voyage_client
+
+
+def _voyage_embed(texts: list[str], *, input_type: str) -> list[list[float]]:
+    """Voyage vectors. Index used input_type=document; queries use input_type=query."""
+    model, width = require_stored_configuration("voyage")
+    logging.info(
+        "Embedding batch provider=voyage model=%s input_type=%s texts=%s",
+        model,
+        input_type,
+        len(texts),
+    )
+    last_error: Exception | None = None
+    delay = 0.5
+    for attempt in range(MAX_ATTEMPTS):
+        try:
+            result = _get_voyage_client().embed(
+                texts=texts,
+                model=model,
+                input_type=input_type,
+                output_dimension=width,
+            )
+            rows = list(result.embeddings)
+            if len(rows) != len(texts):
+                raise EmbeddingError(
+                    f"Voyage returned {len(rows)} vectors for {len(texts)} texts"
+                )
+            return [_vector(row, width) for row in rows]
+        except EmbeddingError:
+            raise
+        except Exception as exc:
+            last_error = exc
+            name = type(exc).__name__
+            retry = name in {"RateLimitError", "ServiceUnavailableError", "Timeout"} or (
+                "429" in str(exc) or "rate" in str(exc).lower()
+            )
+            if not retry or attempt + 1 >= MAX_ATTEMPTS:
+                break
+            logging.warning(
+                "Voyage embed retry attempt=%s error=%s wait=%.1fs",
+                attempt + 1,
+                name,
+                delay,
+            )
+            _pause(delay)
+            delay = min(delay * 2, MAX_RETRY_WAIT_SECONDS)
+    raise EmbeddingError(
+        f"Voyage embed failed: {type(last_error).__name__ if last_error else 'unknown'}"
+    ) from last_error
+
+
 def _embed_batch(texts: list[str], provider: str) -> list[list[float]]:
-    model, width = require_stored_configuration()
+    if provider == "voyage":
+        return _voyage_embed(texts, input_type="document")
+    model, width = require_stored_configuration(provider)
     if provider == "fastembed":
         logging.info(
             "Embedding batch provider=fastembed model=%s texts=%s",
@@ -290,7 +404,7 @@ def _embed_batch(texts: list[str], provider: str) -> list[list[float]]:
         headers = {"Content-Type": "application/json"}
         body = {"inputs": texts, "truncate": True}
     elif provider == "huggingface":
-        url = huggingface_embed_url()
+        url = huggingface_embed_url(model)
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {_hf_token()}",
@@ -298,7 +412,7 @@ def _embed_batch(texts: list[str], provider: str) -> list[list[float]]:
         body = {"inputs": texts, "truncate": True, "normalize": True}
     else:
         raise EmbeddingError(
-            "EMBEDDING_PROVIDER must be 'tei', 'fastembed', or 'huggingface'"
+            "EMBEDDING_PROVIDER must be 'voyage', 'tei', 'fastembed', or 'huggingface'"
         )
     logging.info(
         "Embedding batch provider=%s model=%s texts=%s",
@@ -322,9 +436,9 @@ def _embed_batch(texts: list[str], provider: str) -> list[list[float]]:
 def embed_texts(texts: list[str], provider: str | None = None) -> list[list[float]]:
     """Embed a batch. provider overrides EMBEDDING_PROVIDER for this call only."""
     selected = provider or provider_name()
-    if selected not in ("tei", "fastembed", "huggingface"):
+    if selected not in ("tei", "fastembed", "huggingface", "voyage"):
         raise EmbeddingError(
-            "EMBEDDING_PROVIDER must be 'tei', 'fastembed', or 'huggingface'"
+            "EMBEDDING_PROVIDER must be 'voyage', 'tei', 'fastembed', or 'huggingface'"
         )
     if not texts or any(not isinstance(text, str) or not text.strip() for text in texts):
         raise EmbeddingError("Embeddings require non-empty text")
@@ -339,4 +453,6 @@ def embed_query(text: str) -> list[float]:
     """One query vector from the configured provider. This does not query Qdrant."""
     if not isinstance(text, str) or not text.strip():
         raise EmbeddingError("Query text is empty")
+    if provider_name() == "voyage":
+        return _voyage_embed([text], input_type="query")[0]
     return embed_texts([text])[0]
